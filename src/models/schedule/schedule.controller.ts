@@ -16,6 +16,7 @@ import {
   ApiTags,
   getSchemaPath,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 
 import { ScheduleService } from './schedule.service';
 import { OneWeekDto } from './dto';
@@ -27,6 +28,7 @@ export class ScheduleController {
   constructor(private readonly scheduleService: ScheduleService) {}
 
   @Get('actual_groups')
+  @Throttle({ default: { limit: 4, ttl: 10e3 } })
   async getActualGroups() {
     return await this.scheduleService.getGroups(0, true);
   }
