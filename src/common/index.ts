@@ -11,4 +11,4 @@ export * from './exception';
 export * from './filter';
 export * from './guard';
 export * from './pipe';
-// export * from './util';
+export * from './util';
