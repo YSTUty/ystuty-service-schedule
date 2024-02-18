@@ -1,3 +1,30 @@
+<p align="center"><img src="https://ystuty.github.io/docs/assets/img/YSTUty_logo-text-without-bg-shadow.png" width="150"></p>
+
+<p align="center">
+  <img src="https://img.shields.io/github/package-json/v/YSTUty/ystuty-service-schedule?style=flat-square" alt="GitHub package.json version"/>
+  <img src="https://img.shields.io/github/last-commit/YSTUty/ystuty-service-schedule?style=flat-square" alt="GitHub last commit"/>
+  <br/>
+  <a href="https://vk.com/ss_ystu"><img src="https://img.shields.io/badge/Bot-Use now-9cf?style=flat-square&logo=vk" alt="vk.com/ss_ystu"/></a>
+  <a href="https://t.me/ss_ystu_bot"><img src="https://img.shields.io/badge/Bot-Use now-229ED9?style=flat-square&logo=telegram" alt="t.me/ss_ystu_bot"/></a>
+  <!-- <br/>
+  <img src="https://img.shields.io/badge/dynamic/json?color=ced&style=flat-square&logo=GraphQL&label=Доступно&suffix= групп&query=$.groups&url=https://s-schedule.ystuty.ru/api/schedule/count" alt="Number of available groups"/>
+  <img src="https://img.shields.io/badge/dynamic/json?color=ced&style=flat-square&logo=GraphQL&label=Доступно&suffix= преподавателей&query=$.teachers&url=https://s-schedule.ystuty.ru/api/schedule/count" alt="Number of available teachers"/> -->
+  <br/>
+  <a href="https://view.ystuty.ru" target="_blank"><img src="https://img.shields.io/badge/Viwe%20schedule-YSTUty-9cf?style=flat-square&logo=Internet%20Explorer" alt="view.ystuty.ru"/></a>
+</p>
+
+# [YSTUty.Service] Schedule API
+> Сервис для получения списка групп и расписания
+
+> TODO: Импорт расписания в календарь. (с токеном, для автоматического обновления группы студента каждый курс)
+
+## Используется в
+  * [[YSTUty] Schedule Web view](https://github.com/YSTUty/ystuty-schedule-web-view#readme): Решение для визуализации данных в виде календаря
+  * [[YSTUty] Schedule bot](https://github.com/YSTUty/ystuty-schedule-bot#readme): Решение в виде бота для мессенджеров Telegram и VK
+> Если вы хотите добавить свой проект в список, создайте [новую тему](https://github.com/YSTUty/ystuty-service-schedule/issues/new) в репозитории.
+
+<hr/>
+
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
 </p>
