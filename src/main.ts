@@ -57,7 +57,7 @@ async function bootstrap() {
   const swaggerConfig = new DocumentBuilder()
     .setTitle(`${xEnv.APP_NAME} API`)
     .setDescription(`This documentation describes the ${xEnv.APP_NAME} API.`)
-    .setVersion('1.0.0')
+    .setVersion(process.env.npm_package_version)
     .addTag('schedule', 'YSTU Schedule')
     .addServer(`${xEnv.SERVER_URL}`, 'Main API Server (for main requests)')
     .addServer(`${xEnv.OAUTH_URL}`, 'Main oAuth Server (for get token)')
