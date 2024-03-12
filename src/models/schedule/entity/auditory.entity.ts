@@ -74,7 +74,7 @@ export class Auditory {
 
   @Expose()
   @Column({ name: 'primech', nullable: true })
-  public node: string;
+  public note: string;
 
   @Expose()
   @Column({ name: 'abrkaf', nullable: true })
