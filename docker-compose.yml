@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  app_srv:
+    build:
+      context: .
+      target: production
+      dockerfile: ./Dockerfile
+    command: yarn start:prod
+    # links:
+    #   - redis
+    #   - postgres
+    ports:
+      # 8080 is the default port
+      - ${SERVER_EXTERNAL_PORT:-8080}:${SERVER_PORT:-8080}
+    volumes:
+      - ./.env:/home/node/app/.env
+    networks:
+      - ystuty_network
+    healthcheck:
+      test: curl --fail http://localhost:${SERVER_PORT:-8080}/api/uptime || exit 1
+      interval: 2m
+      retries: 3
+      start_period: 40s
+      timeout: 10s
+    restart: unless-stopped
+    stdin_open: true # docker run -i
+    tty: true        # docker run -t
+
+networks:
+  ystuty_network:
+    external:
+      name: ystuty_network
