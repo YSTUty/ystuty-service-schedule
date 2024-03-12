@@ -6,6 +6,7 @@ import {
   Param,
   Query,
   UseInterceptors,
+  Version,
 } from '@nestjs/common';
 import {
   ApiExtraModels,
@@ -28,12 +29,14 @@ export class ScheduleController {
   constructor(private readonly scheduleService: ScheduleService) {}
 
   @Get('actual_groups')
+  @Version('1')
   @Throttle({ default: { limit: 4, ttl: 10e3 } })
   async getActualGroups() {
     return await this.scheduleService.getGroups(0, true);
   }
 
   @Get('group/:groupIdOrName')
+  @Version('1')
   @ApiOperation({ summary: 'Get a schedule for the specified group' })
   @ApiParam({
     name: 'groupIdOrName',
