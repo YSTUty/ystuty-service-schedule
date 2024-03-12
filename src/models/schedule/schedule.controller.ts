@@ -20,7 +20,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 
 import { ScheduleService } from './schedule.service';
-import { OneWeekDto } from './dto';
+import { GroupDetailDto, InstituteGroupsDto, OneWeekDto } from './dto';
 
 @ApiTags('schedule')
 @Controller('/schedule')
@@ -31,16 +31,48 @@ export class ScheduleController {
   @Get('actual_groups')
   @Version('1')
   @Throttle({ default: { limit: 4, ttl: 10e3 } })
-  async getActualGroups() {
-    return await this.scheduleService.getGroups(0, true);
+  @ApiOperation({ summary: 'Вернуть список актуальных групп по институтам' })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      type: 'object',
+      properties: {
+        // isCache: {
+        //   type: 'boolean',
+        // },
+        name: {
+          type: 'string',
+          description: 'Название семестра',
+        },
+        items: {
+          type: 'array',
+          items: {
+            $ref: getSchemaPath(InstituteGroupsDto),
+          },
+        },
+      },
+    },
+  })
+  @ApiQuery({
+    name: 'additional',
+    description: 'Вернуть расширенную информацию о группах',
+    required: false,
+    schema: {
+      default: false,
+      type: 'boolean',
+    },
+  })
+  @ApiExtraModels(InstituteGroupsDto, GroupDetailDto)
+  async getActualGroups(@Query('additional') additional: boolean = false) {
+    return await this.scheduleService.getGroups(0, additional);
   }
 
   @Get('group/:groupIdOrName')
   @Version('1')
-  @ApiOperation({ summary: 'Get a schedule for the specified group' })
+  @ApiOperation({ summary: 'Вернуть расписание для выбранной группы' })
   @ApiParam({
     name: 'groupIdOrName',
-    description: 'Group name or ID',
+    description: 'Название или ID группы',
     allowEmptyValue: false,
     examples: {
       eis46: {
@@ -70,9 +102,6 @@ export class ScheduleController {
       properties: {
         isCache: {
           type: 'boolean',
-        },
-        name: {
-          type: 'string',
         },
         items: {
           type: 'array',

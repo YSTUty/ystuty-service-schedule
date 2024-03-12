@@ -1,10 +1,10 @@
 import { WeekNumberType } from '@my-interfaces';
 
 export class WeekDayDto {
-  // name?: string;
+  /** Тип/номер дня недели */
   type: WeekNumberType;
-  date?: Date;
-  weekNumber?: number;
-  // parity?: WeekParityType;
-  // dateStr?: string;
+  /** Дата дня недели */
+  date: Date;
+  /** Номер недели в семестре */
+  weekNumber: number;
 }

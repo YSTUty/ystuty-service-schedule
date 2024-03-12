@@ -11,7 +11,7 @@ import {
 } from '@my-common';
 
 import { Exam, ScheduleView } from './entity';
-import { LessonDto, OneDayDto, OneWeekDto } from './dto';
+import { InstituteGroupsDto, LessonDto, OneDayDto, OneWeekDto } from './dto';
 
 interface IExamDay {
   date: Date;
@@ -29,7 +29,7 @@ export class ScheduleService {
     private readonly examenRepository: Repository<Exam>,
   ) {}
 
-  async getGroups(idSchedule: number, short = false) {
+  async getGroups(idSchedule: number, additional = true) {
     const qb = this.raspzViewRepository
       .createQueryBuilder('r')
       .innerJoin('raspz_nastr', 'n', 'n.idraspz = r.idraspz')
@@ -71,23 +71,8 @@ export class ScheduleService {
 
     const raws = await qb.getRawMany();
 
-    const rowsByFaculty: Record<
-      number,
-      {
-        id?: number;
-        name: string;
-        groups: (
-          | {
-              course: number;
-              name: string;
-              id_schedule: number;
-              hasLecture: boolean;
-            }
-          | string
-        )[];
-      }
-    > = {};
-    let namerasp = null;
+    const rowsByFaculty: Record<number, InstituteGroupsDto> = {};
+    let namerasp: string = null;
 
     for (const raw of raws) {
       const { idfac, groupId, namefac, name, courseNumber, fl_lek } = raw;
@@ -98,12 +83,12 @@ export class ScheduleService {
           name: namefac,
           groups: [],
         };
-        if (!short) {
+        if (additional) {
           rowsByFaculty[idfac].id = idfac;
         }
       }
 
-      if (short) {
+      if (!additional) {
         rowsByFaculty[idfac].groups.push(name);
       } else {
         let group = (
@@ -239,10 +224,9 @@ export class ScheduleService {
       if (!curDay) {
         curDay = {
           info: {
-            // name: `[type:${weekNumber}]`,
-            type: weekNumber - 1,
-            date,
+            type: moment(date).day() - 1,
             weekNumber,
+            date,
           },
           lessons: [],
         };
