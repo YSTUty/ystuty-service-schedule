@@ -25,7 +25,15 @@ services:
       timeout: 10s
     restart: unless-stopped
     stdin_open: true # docker run -i
-    tty: true        # docker run -t
+    tty: true # docker run -t
+
+  redis:
+    image: 'redis:alpine'
+    volumes:
+      - ./redis-data:/data
+    networks:
+      - ystuty_network
+    restart: unless-stopped
 
 networks:
   ystuty_network:

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as moment from 'moment';
@@ -12,6 +12,7 @@ import {
 
 import { Exam, ScheduleView } from './entity';
 import { InstituteGroupsDto, LessonDto, OneDayDto, OneWeekDto } from './dto';
+import { RedisService } from '../redis/redis.service';
 
 interface IExamDay {
   date: Date;
@@ -22,14 +23,21 @@ interface IExamDay {
 
 @Injectable()
 export class ScheduleService {
+  private readonly logger = new Logger(ScheduleService.name);
+  protected allowCaching = true;
+
   constructor(
     @InjectRepository(ScheduleView)
     private readonly raspzViewRepository: Repository<ScheduleView>,
     @InjectRepository(Exam)
     private readonly examenRepository: Repository<Exam>,
+
+    private readonly redisService: RedisService,
   ) {}
 
   async getGroups(idSchedule: number, additional = true) {
+    const cacheKey = `groups:${idSchedule}:additional-${additional}`;
+
     const qb = this.raspzViewRepository
       .createQueryBuilder('r')
       .innerJoin('raspz_nastr', 'n', 'n.idraspz = r.idraspz')
@@ -115,26 +123,36 @@ export class ScheduleService {
       }
     }
 
+    const items = Object.values(rowsByFaculty);
+    if (this.allowCaching) {
+      await this.redisService.redis.set(
+        cacheKey,
+        JSON.stringify(items),
+        'EX',
+        60 * 10,
+      );
+    }
+
     return {
       name: namerasp,
-      items: Object.values(rowsByFaculty),
+      items,
     };
   }
 
   async getByGroup(idSchedule: number, groupIdOrName: number | string) {
-    // const file: [string, string] = [
-    //   'schedule-getByGroup',
-    //   `${idSchedule}-${groupIdOrName}`,
-    // ];
+    this.logger.debug('idSchedule:' + idSchedule);
 
-    // const isTimeout = await cacheManager.checkTimeout(file);
-
-    // if (isTimeout === false) {
-    //   const cacheData = await cacheManager.readData(file);
-    //   if (cacheData.length) {
-    //     return { isCache: true, items: cacheData };
-    //   }
-    // }
+    const cacheKey = `byGroup:${idSchedule}:${String(groupIdOrName).toLowerCase()}`;
+    if (this.allowCaching) {
+      try {
+        const cachedData = await this.redisService.redis.get(cacheKey);
+        if (cachedData) {
+          return { isCache: true, items: JSON.parse(cachedData) };
+        }
+      } catch (err) {
+        this.logger.error(err);
+      }
+    }
 
     const qb = this.raspzViewRepository
       .createQueryBuilder('r')
@@ -349,7 +367,7 @@ export class ScheduleService {
     }
 
     // use exams
-    if (true) {
+    if (!idSchedule) {
       const qbExam = this.examenRepository
         .createQueryBuilder('e')
         .where('1=1')
@@ -378,7 +396,15 @@ export class ScheduleService {
     }
 
     const items = weeks;
-    // await cacheManager.update(file, items, 10e3);
+
+    if (this.allowCaching) {
+      await this.redisService.redis.set(
+        cacheKey,
+        JSON.stringify(items),
+        'EX',
+        60 * 5,
+      );
+    }
 
     return { isCache: false, items };
   }

@@ -68,3 +68,12 @@ export const TYPEORM_CONFIG = {
   database: process.env.TYPEORM_DATABASE || 'master',
   schema: process.env.TYPEORM_SCHEMA,
 };
+
+// * Redis
+export const REDIS_HOST: string = process.env.REDIS_HOST || 'redis';
+export const REDIS_PORT: number = +process.env.REDIS_PORT || 6379;
+export const REDIS_USER: string = process.env.REDIS_USER;
+export const REDIS_PASSWORD: string = process.env.REDIS_PASSWORD;
+export const REDIS_DATABASE: number = +process.env.REDIS_DATABASE || 0;
+export const REDIS_PREFIX: string =
+  process.env.REDIS_PREFIX ?? 'ystuty:service:schedule:';

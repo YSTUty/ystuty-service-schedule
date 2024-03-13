@@ -8,6 +8,7 @@ import { AppController } from './app.controller';
 
 import { OAuthServerModule } from '../oauth-server/oauth-server.module';
 import { ScheduleModule } from '../schedule/schedule.module';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ScheduleModule } from '../schedule/schedule.module';
         limit: 5,
       },
     ]),
+    RedisModule,
     OAuthServerModule,
     ScheduleModule.register(),
   ],

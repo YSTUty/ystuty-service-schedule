@@ -1,9 +1,11 @@
 import {
   ClassSerializerInterceptor,
   Controller,
+  DefaultValuePipe,
   Get,
   NotFoundException,
   Param,
+  ParseIntPipe,
   Query,
   UseInterceptors,
   Version,
@@ -115,7 +117,8 @@ export class ScheduleController {
   @ApiExtraModels(OneWeekDto)
   async getByGroup(
     @Param('groupIdOrName') groupIdOrName: string,
-    @Query('idschedule') idSchedule: number = 0,
+    @Query('idschedule', new DefaultValuePipe(0), ParseIntPipe)
+    idSchedule: number,
   ) {
     const result = await this.scheduleService.getByGroup(
       idSchedule,
@@ -123,7 +126,9 @@ export class ScheduleController {
     );
 
     if (result.items.length === 0) {
-      throw new NotFoundException('group not found by this name or id');
+      throw new NotFoundException(
+        `group not found by this name or id${idSchedule ? ' or idschedule' : ''}`,
+      );
     }
     return result;
   }
