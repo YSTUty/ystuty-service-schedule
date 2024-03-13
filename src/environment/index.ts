@@ -24,6 +24,8 @@ export const SERVER_EXTERNAL_PORT: number =
   +process.env.SERVER_EXTERNAL_PORT || SERVER_PORT;
 export const SERVER_URL: string =
   process.env.SERVER_URL || `http://${APP_DOMAIN}:${SERVER_EXTERNAL_PORT}`;
+export const CUSTOM_CALENDAR_URL: string =
+  process.env.CUSTOM_CALENDAR_URL || `${SERVER_URL}/v1/calendar`;
 
 // * oAuth server
 export const MS_OAUTH_SERVER_PORT: number =

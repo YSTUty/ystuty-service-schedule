@@ -18,7 +18,7 @@ export class CalendarService {
   public generateCalendar() {
     return ical()
       .name(`YSTUty Calendar`)
-      .url(xEnv.SERVER_URL)
+      .url(xEnv.CUSTOM_CALENDAR_URL)
       .prodId({
         company: 'YSTUty',
         product: `${xEnv.APP_NAME} (Calendar)`,
@@ -39,7 +39,7 @@ export class CalendarService {
 
     const calendar = this.generateCalendar()
       .name(`YSTUty [${groupName}]`)
-      .source(`${xEnv.SERVER_URL}/calendar/group/${groupName}.ical`)
+      .source(`${xEnv.CUSTOM_CALENDAR_URL}/group/${groupName}.ical`)
       .description(`Расписание занятий ЯГТУ для группы ${groupName}`);
 
     for (const lesson of schedule.items.flatMap((e) =>

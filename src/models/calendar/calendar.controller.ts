@@ -6,6 +6,7 @@ import {
   Param,
   Req,
   Res,
+  Version,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
@@ -20,6 +21,7 @@ export class CalendarController {
   constructor(private readonly calendarService: CalendarService) {}
 
   @Get('group/:groupName.ical')
+  @Version('1')
   @ApiOperation({
     summary: 'Получить файл календаря ical с расписанием группы',
   })
