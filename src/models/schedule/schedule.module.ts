@@ -28,6 +28,7 @@ export class ScheduleModule {
         ],
         controllers: [ScheduleController],
         providers: [ScheduleService],
+        exports: [ScheduleService],
       }),
     };
   }

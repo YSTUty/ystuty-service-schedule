@@ -9,6 +9,7 @@ import { AppController } from './app.controller';
 import { OAuthServerModule } from '../oauth-server/oauth-server.module';
 import { ScheduleModule } from '../schedule/schedule.module';
 import { RedisModule } from '../redis/redis.module';
+import { CalendarModule } from '../calendar/calendar.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { RedisModule } from '../redis/redis.module';
     RedisModule,
     OAuthServerModule,
     ScheduleModule.register(),
+    CalendarModule.register(),
   ],
   controllers: [AppController],
   providers: [

@@ -124,6 +124,10 @@ export class ScheduleService {
     }
 
     const items = Object.values(rowsByFaculty);
+    if (items.length === 0) {
+      return null;
+    }
+
     if (this.allowCaching) {
       await this.redisService.redis.set(
         cacheKey,
@@ -133,21 +137,17 @@ export class ScheduleService {
       );
     }
 
-    return {
-      name: namerasp,
-      items,
-    };
+    return { name: namerasp, items };
   }
 
   async getByGroup(idSchedule: number, groupIdOrName: number | string) {
-    this.logger.debug('idSchedule:' + idSchedule);
-
     const cacheKey = `byGroup:${idSchedule}:${String(groupIdOrName).toLowerCase()}`;
     if (this.allowCaching) {
       try {
         const cachedData = await this.redisService.redis.get(cacheKey);
         if (cachedData) {
-          return { isCache: true, items: JSON.parse(cachedData) };
+          const items = JSON.parse(cachedData) as OneWeekDto[];
+          return { isCache: true, items };
         }
       } catch (err) {
         this.logger.error(err);
@@ -396,6 +396,9 @@ export class ScheduleService {
     }
 
     const items = weeks;
+    if (items.length === 0) {
+      return null;
+    }
 
     if (this.allowCaching) {
       await this.redisService.redis.set(

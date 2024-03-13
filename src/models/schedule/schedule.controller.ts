@@ -125,7 +125,7 @@ export class ScheduleController {
       groupIdOrName,
     );
 
-    if (result.items.length === 0) {
+    if (!result) {
       throw new NotFoundException(
         `group not found by this name or id${idSchedule ? ' or idschedule' : ''}`,
       );

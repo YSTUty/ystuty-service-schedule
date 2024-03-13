@@ -59,6 +59,7 @@ async function bootstrap() {
     .setDescription(`This documentation describes the ${xEnv.APP_NAME} API.`)
     .setVersion(process.env.npm_package_version)
     .addTag('schedule', 'YSTU Schedule')
+    .addTag('calendar', 'YSTU Calendar')
     .addServer(`${xEnv.SERVER_URL}`, 'Main API Server (for main requests)')
     .addServer(`${xEnv.OAUTH_URL}`, 'Main oAuth Server (for get token)')
     .addOAuth2(
