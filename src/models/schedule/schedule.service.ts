@@ -140,7 +140,7 @@ export class ScheduleService {
     return { name: namerasp, items };
   }
 
-  async getByGroup(idSchedule: number, groupIdOrName: number | string) {
+  async getByGroup(groupIdOrName: number | string, idSchedule: number = 0) {
     const cacheKey = `byGroup:${idSchedule}:${String(groupIdOrName).toLowerCase()}`;
     if (this.allowCaching) {
       try {

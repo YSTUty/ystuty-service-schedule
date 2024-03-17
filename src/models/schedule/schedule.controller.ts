@@ -121,8 +121,8 @@ export class ScheduleController {
     idSchedule: number,
   ) {
     const result = await this.scheduleService.getByGroup(
-      idSchedule,
       groupIdOrName,
+      idSchedule,
     );
 
     if (!result) {

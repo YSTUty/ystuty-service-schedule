@@ -32,7 +32,7 @@ export class CalendarService {
   }
 
   public async generateCalenadrForGroup(groupName: string) {
-    const schedule = await this.scheduleService.getByGroup(0, groupName);
+    const schedule = await this.scheduleService.getByGroup(groupName);
     if (!schedule) {
       return null;
     }
