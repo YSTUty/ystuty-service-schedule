@@ -37,6 +37,20 @@ export class ScheduleService {
 
   async getGroups(idSchedule: number, additional = true) {
     const cacheKey = `groups:${idSchedule}:additional-${additional}`;
+    if (this.allowCaching) {
+      try {
+        const cachedData = await this.redisService.redis.get(cacheKey);
+        if (cachedData) {
+          const response = JSON.parse(cachedData) as {
+            name: string;
+            items: InstituteGroupsDto[];
+          };
+          return { isCache: true, ...response };
+        }
+      } catch (err) {
+        this.logger.error(err);
+      }
+    }
 
     const qb = this.raspzViewRepository
       .createQueryBuilder('r')
@@ -128,16 +142,17 @@ export class ScheduleService {
       return null;
     }
 
+    const response = { isCache: undefined as boolean, name: namerasp, items };
     if (this.allowCaching) {
       await this.redisService.redis.set(
         cacheKey,
-        JSON.stringify(items),
+        JSON.stringify(response),
         'EX',
         60 * 10,
       );
     }
 
-    return { name: namerasp, items };
+    return response;
   }
 
   async getByGroup(groupIdOrName: number | string, idSchedule: number = 0) {
