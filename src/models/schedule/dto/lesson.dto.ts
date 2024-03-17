@@ -9,7 +9,7 @@ export class LessonDto {
    * Временной интервал пары
    * @example '08:30-10:00'
    */
-  time: string;
+  timeRange: string;
   /**
    * Timestamp начала пары
    */

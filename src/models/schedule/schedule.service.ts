@@ -312,7 +312,9 @@ export class ScheduleService {
         weeks.push(curWeek);
       }
 
-      let curDay = curWeek.days.find((e) => e.info.date === date);
+      let curDay = curWeek.days.find(
+        (e) => e.info.date.toString() === date.toString(),
+      );
       if (!curDay) {
         curDay = {
           info: {
@@ -335,7 +337,7 @@ export class ScheduleService {
         academicHours > 1 ? (number === 2 ? -2 : number === 5 ? 0 : 1) : 1,
       );
 
-      let time = timeInterval;
+      let timeRange = timeInterval;
       let [startTime, endTime] = timeInterval.split('-');
       if (academicHours > 1 && startTime && endTime) {
         const dateTime = new Date(0);
@@ -346,13 +348,13 @@ export class ScheduleService {
           .getMinutes()
           .toString()
           .padStart(2, '0')}`;
-        time = `${startTime}-${endTime}`;
+        timeRange = `${startTime}-${endTime}`;
       }
 
       let originalTime =
-        academicHours > 1 ? `${startTime}-...${academicHours * 2}ч` : time;
+        academicHours > 1 ? `${startTime}-...${academicHours * 2}ч` : timeRange;
 
-      if (isShort) time += ' [SHORT]';
+      if (isShort) timeRange += ' [SHORT]';
 
       const typeRegExp = new RegExp(
         '' +
@@ -414,7 +416,7 @@ export class ScheduleService {
       let lesson: LessonDto = {
         number,
         startAt,
-        time,
+        timeRange,
         originalTimeTitle: `${lessonNumber}. ${originalTime}`,
         parity: parityOnWeek(trainingId),
         lessonName,
@@ -670,7 +672,7 @@ export class ScheduleService {
         endAt: moment(exam.date).add(23, 'hour').toDate(),
 
         number: null,
-        time: null,
+        timeRange: null,
         parity: null,
 
         lessonName: exam.lessonName,
