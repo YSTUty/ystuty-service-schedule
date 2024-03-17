@@ -10,15 +10,24 @@ import {
   getWeekOffsetByYear,
 } from '@my-common';
 
-import { Exam, ScheduleView } from './entity';
-import { InstituteGroupsDto, LessonDto, OneDayDto, OneWeekDto } from './dto';
+import { Exam, ScheduleView, Teacher } from './entity';
+import {
+  InstituteGroupsDto,
+  LessonDto,
+  TeacherLessonDto,
+  OneDayDto,
+  OneWeekDto,
+  TeacherOneWeekDto,
+} from './dto';
 import { RedisService } from '../redis/redis.service';
 
 interface IExamDay {
   date: Date;
   lessonName: string;
   auditoryName: string;
-  teacherName: string;
+  teacherName?: string;
+  groupName?: string;
+  note?: string;
 }
 
 @Injectable()
@@ -31,6 +40,8 @@ export class ScheduleService {
     private readonly raspzViewRepository: Repository<ScheduleView>,
     @InjectRepository(Exam)
     private readonly examenRepository: Repository<Exam>,
+    @InjectRepository(Teacher)
+    private readonly teacherRepository: Repository<Teacher>,
 
     private readonly redisService: RedisService,
   ) {}
@@ -413,7 +424,7 @@ export class ScheduleService {
         }
       }
 
-      let lesson: LessonDto = {
+      const lesson = new LessonDto({
         number,
         startAt,
         timeRange,
@@ -438,7 +449,7 @@ export class ScheduleService {
         subInfo,
         isShort,
         isLecture: lectureFlag > 0,
-      };
+      });
       curDay.lessons.push(lesson);
     }
 
@@ -451,10 +462,10 @@ export class ScheduleService {
         .andWhere('e.data IS NOT NULL')
 
         .select('e.data', 'date')
-        // .addSelect('g.namegroup', 'namegr')
         .addSelect('p.namepredmet', 'lessonName')
         .addSelect('a.nameaudi', 'auditoryName')
         .addSelect('pr.fio1', 'teacherName')
+        .addSelect('e.note', 'note')
 
         .leftJoin('audi', 'a', 'a.idaudi = e.idaudi')
         .leftJoin('gruppa', 'g', 'e.idgroup = g.idgroup')
@@ -486,6 +497,321 @@ export class ScheduleService {
     }
 
     return { isCache: false, items };
+  }
+
+  async getByTeacher(teacherId: number, idSchedule: number = 0) {
+    const cacheKey = `byTeacher:${idSchedule}:${teacherId}`;
+    if (this.allowCaching) {
+      try {
+        const cachedData = await this.redisService.redis.get(cacheKey);
+        if (cachedData) {
+          const response = JSON.parse(cachedData) as {
+            isCache: boolean;
+            teacher: {
+              name: string;
+              id: number;
+            };
+            items: TeacherOneWeekDto[];
+          };
+          return { isCache: true, ...response };
+        }
+      } catch (err) {
+        this.logger.error(err);
+      }
+    }
+
+    const qb = this.raspzViewRepository
+      .createQueryBuilder('r')
+      .where('1=1')
+      .andWhere('childz = :childz', { childz: 0 })
+
+      .orderBy('datz', 'ASC')
+      .addOrderBy('nned', 'ASC')
+      .addOrderBy('npar', 'ASC');
+
+    if (!isNaN(Number(teacherId))) {
+      qb.andWhere('(prep = :id OR prep2 = :id)', { id: teacherId });
+    }
+
+    if (idSchedule > 0) {
+      qb.andWhere('idraspz = :idSchedule', { idSchedule });
+    } else {
+      qb.innerJoin('raspz_nastr', 'n', 'n.idraspz = r.idraspz');
+      qb.andWhere('n.fl_pub > 0');
+    }
+
+    const raspz = await qb.getMany();
+
+    let parityOnWeekMap: Map<number, WeekParityType> = new Map();
+    const parityOnWeek = (trainingId: number): WeekParityType => {
+      if (parityOnWeekMap.has(trainingId)) {
+        return parityOnWeekMap.get(trainingId);
+      }
+      let total = 0;
+      let odd = 0;
+      for (const raw of raspz) {
+        if (raw.trainingId === trainingId) {
+          ++total;
+          if (raw.weekNumber % 2 === 1) {
+            ++odd;
+          }
+        }
+      }
+      let res =
+        total === odd
+          ? WeekParityType.ODD
+          : odd === 0
+            ? WeekParityType.EVEN
+            : WeekParityType.CUSTOM;
+      parityOnWeekMap.set(trainingId, res);
+      return res;
+    };
+
+    const weeks: TeacherOneWeekDto[] = [];
+    for (const raw of raspz) {
+      const {
+        date,
+        startAt,
+        lessonNumber,
+        weekNumber,
+        timeInterval,
+        lessonName,
+        auditoryName_1,
+        auditoryName_2,
+        teacherName_1,
+        teacherName_2,
+        teacherId: teacherId_1,
+        teacherId_2,
+        groupName,
+        streamRefId,
+        academicHours,
+        isShort,
+        isDistant,
+        isDivision,
+        lessonTypeShortName,
+        additionalInfo,
+        trainingId,
+        lectureFlag,
+      } = raw;
+
+      let curWeek = weeks.find((e) => e.number === weekNumber);
+      if (!curWeek) {
+        curWeek = {
+          number: weekNumber,
+          days: [],
+        };
+        weeks.push(curWeek);
+      }
+
+      let curDay = curWeek.days.find(
+        (e) => e.info.date.toString() === date.toString(),
+      );
+      if (!curDay) {
+        curDay = {
+          info: {
+            type: moment(date).day() - 1,
+            weekNumber,
+            date,
+          },
+          lessons: [],
+        };
+        curWeek.days.push(curDay);
+      }
+
+      if (streamRefId) {
+        const curLesson = curDay.lessons.find(
+          (e) => e.trainingId === streamRefId,
+        );
+        if (curLesson) {
+          curLesson.groups.push(groupName);
+          continue;
+        }
+      }
+
+      let number = lessonNumber;
+      if (number > 2 || number > 7) {
+        --number;
+      }
+
+      const durationMinutes = ((f, fixT = 1) => f * 90 + (f - fixT) * 10)(
+        Math.floor(academicHours),
+        academicHours > 1 ? (number === 2 ? -2 : number === 5 ? 0 : 1) : 1,
+      );
+
+      let timeRange = timeInterval;
+      let [startTime, endTime] = timeInterval.split('-');
+      if (academicHours > 1 && startTime && endTime) {
+        const dateTime = new Date(0);
+        const ds = startTime.split(':').map(Number);
+        dateTime.setHours(ds[0], ds[1]);
+        dateTime.setMinutes(dateTime.getMinutes() + durationMinutes);
+        endTime = `${dateTime.getHours().toString().padStart(2, '0')}:${dateTime
+          .getMinutes()
+          .toString()
+          .padStart(2, '0')}`;
+        timeRange = `${startTime}-${endTime}`;
+      }
+
+      let originalTime =
+        academicHours > 1 ? `${startTime}-...${academicHours * 2}ч` : timeRange;
+
+      if (isShort) timeRange += ' [SHORT]';
+
+      const typeRegExp = new RegExp(
+        '' +
+          '( ?(?<online>\\(онлайн\\)))?' +
+          '(,? ?(\\+ ?)?(?<types2>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
+          '(,? ?(\\+ ?)?(?<types3>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
+          '(,? ?(\\+ ?)?(?<types4>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
+          '(,? ?(\\+ ?)?(?<types5>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
+          '(,? ?\\(\\+(?<types6>teams|лекция|лек\\.?|лаб\\.?|пр\\.?з?\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.?зач\\.?|экз\\.?)\\))?' +
+          ',?\\+?' +
+          '( ?(?<subInfo>.*))?',
+        'i',
+      );
+      const typeGroups = additionalInfo.match(typeRegExp).groups || {};
+      // const isOnline = !!typeGroups.online;
+      const subInfo = typeGroups.subInfo;
+
+      let type: LessonFlags = [
+        lessonTypeShortName || '',
+        typeGroups.types2 || '',
+        typeGroups.types3 || '',
+        typeGroups.types4 || '',
+        typeGroups.types5 || '',
+        typeGroups.types6 || '',
+      ]
+        .filter(Boolean)
+        .flatMap((e) => e.split(','))
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean)
+        .reduce(
+          (prev, type) => (prev |= getLessonTypeFromStr(type)),
+          LessonFlags.None,
+        );
+
+      const subInfoLower = subInfo?.toLowerCase();
+      if (subInfoLower) {
+        let libraryStrings = [subInfoLower, lessonName?.toLowerCase()].filter(
+          Boolean,
+        );
+        if (
+          libraryStrings.some(
+            (str) =>
+              str.includes('библ.') ||
+              str.includes('библиот') ||
+              str.includes('книговыдача'),
+          )
+        ) {
+          type |= LessonFlags.Library;
+        }
+      }
+
+      if (type === LessonFlags.None && lessonName) {
+        // TODO: add more combinations
+        if (lessonName.includes('исследовательская работа')) {
+          type |= LessonFlags.ResearchWork;
+        }
+      }
+
+      const lesson = new TeacherLessonDto({
+        trainingId,
+        number,
+        startAt,
+        timeRange,
+        originalTimeTitle: `${lessonNumber}. ${originalTime}`,
+        parity: parityOnWeek(trainingId),
+        lessonName,
+        type,
+        isStream: streamRefId > 0,
+        duration: academicHours * 2,
+        durationMinutes,
+        isDivision,
+        auditoryName:
+          [auditoryName_1, auditoryName_2].filter(Boolean).join('; ').trim() ||
+          null,
+        // teacherName:
+        //   [teacherName_1, teacherName_2].filter(Boolean).join('; ').trim() ||
+        //   null,
+        groups: [groupName],
+        isDistant,
+        endAt: new Date(
+          startAt.getTime() + durationMinutes * 60e3,
+        ).toISOString(),
+        subInfo,
+        isShort,
+        isLecture: lectureFlag > 0,
+      });
+
+      if (
+        (teacherId_1 && teacherId_1 !== teacherId) ||
+        (teacherId_2 && teacherId_2 !== teacherId)
+      ) {
+        lesson.additionalTeacher =
+          teacherId_1 && teacherId_1 !== teacherId
+            ? { name: teacherName_1, id: teacherId_1 }
+            : { name: teacherName_2, id: teacherId_2 };
+      }
+
+      // lesson['debug'] = {
+      //   IDr: raw.IDr,
+      //   trainingId,
+      //   streamRefId,
+      // };
+
+      curDay.lessons.push(lesson);
+    }
+
+    // use exams
+    if (!idSchedule) {
+      const qbExam = this.examenRepository
+        .createQueryBuilder('e')
+        .where('1=1')
+        .andWhere('isnull(e.noras, 0) <= 0')
+        .andWhere('e.data IS NOT NULL')
+
+        .select('e.data', 'date')
+        .addSelect('p.namepredmet', 'lessonName')
+        .addSelect('a.nameaudi', 'auditoryName')
+        .addSelect('g.namegroup', 'groupName')
+        .addSelect('e.note', 'note')
+
+        .leftJoin('audi', 'a', 'a.idaudi = e.idaudi')
+        .leftJoin('gruppa', 'g', 'e.idgroup = g.idgroup')
+        .leftJoin('predmet', 'p', 'e.idpredmet = p.idpredmet')
+        .leftJoin('prep_examen', 'pe', 'pe.idexam = e.idexam');
+
+      qbExam.andWhere('pe.idprep = :id', { id: teacherId });
+      const exams: IExamDay[] = await qbExam.getRawMany();
+      if (exams.length > 0) {
+        this.injectExams(weeks, exams, true);
+      }
+    }
+
+    const items = weeks;
+    if (items.length === 0) {
+      return null;
+    }
+
+    const teacherInfo = await this.teacherRepository.findOneBy({
+      id: teacherId,
+    });
+    const teacher = {
+      id: teacherId,
+      name: teacherInfo?.fio1 || '',
+    };
+
+    const response = { isCache: undefined as boolean, teacher, items };
+    if (this.allowCaching) {
+      await this.redisService.redis.set(
+        cacheKey,
+        JSON.stringify(response),
+        'EX',
+        60 * 5,
+      );
+    }
+
+    return response;
   }
 
   async getTeachersBySchedule(idSchedule: number) {
@@ -646,7 +972,11 @@ export class ScheduleService {
     return { isCache: false, items, count: items.length };
   }
 
-  private injectExams(schedule: OneWeekDto[], exams: IExamDay[]) {
+  private injectExams(
+    schedule: (OneWeekDto | TeacherOneWeekDto)[],
+    exams: IExamDay[],
+    forTeacher = false,
+  ) {
     for (const exam of exams) {
       let targetDay: OneDayDto = null;
 
@@ -667,7 +997,7 @@ export class ScheduleService {
         }
       }
 
-      const lessonFormat: LessonDto = {
+      const lessonFormat = new LessonDto({
         startAt: exam.date,
         endAt: moment(exam.date).add(23, 'hour').toDate(),
 
@@ -684,8 +1014,14 @@ export class ScheduleService {
         durationMinutes: null,
         isDivision: false,
         auditoryName: exam.auditoryName,
-        teacherName: exam.teacherName,
-      };
+        subInfo: exam.note,
+      }) as LessonDto & Partial<TeacherLessonDto>;
+
+      if (forTeacher) {
+        lessonFormat.groups = [exam.groupName];
+      } else {
+        lessonFormat.teacherName = exam.teacherName;
+      }
 
       if (targetDay) {
         targetDay.lessons.push(lessonFormat);
@@ -713,7 +1049,8 @@ export class ScheduleService {
         };
         weekIndex += schedule.push(newWeek);
       }
-      schedule[weekIndex].days.push(oneDayExam);
+      const days = schedule[weekIndex].days as OneDayDto[];
+      days.push(oneDayExam);
     }
   }
 }

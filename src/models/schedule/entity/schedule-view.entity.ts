@@ -13,7 +13,7 @@ import {
 @Exclude()
 export class ScheduleView {
   /**
-   * Только дата с нудеым временем
+   * Только дата с нулеым временем
    * @example 2024-05-31 00:00:00.000
    */
   @Expose()
@@ -196,7 +196,7 @@ export class ScheduleView {
 
   @Expose()
   @ViewColumn({ name: 'prep' })
-  public prep: number;
+  public teacherId: number;
 
   @Expose()
   @JoinColumn({ name: 'prep' })

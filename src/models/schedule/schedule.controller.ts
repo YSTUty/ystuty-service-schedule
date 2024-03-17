@@ -22,7 +22,12 @@ import {
 import { Throttle } from '@nestjs/throttler';
 
 import { ScheduleService } from './schedule.service';
-import { GroupDetailDto, InstituteGroupsDto, OneWeekDto } from './dto';
+import {
+  GroupDetailDto,
+  InstituteGroupsDto,
+  OneWeekDto,
+  TeacherOneWeekDto,
+} from './dto';
 
 @ApiTags('schedule')
 @Controller('/schedule')
@@ -164,7 +169,7 @@ export class ScheduleController {
     return result;
   }
 
-  @Get('teachers')
+  @Get('actual_teachers')
   @Version('1')
   @ApiOperation({ summary: 'Список преподавателей в текущем семестре' })
   @ApiResponse({
@@ -198,6 +203,39 @@ export class ScheduleController {
 
     if (!result) {
       throw new NotFoundException('teachers not found for current shedule');
+    }
+    return result;
+  }
+
+  @Get('teacher/:teacherId')
+  @Version('1')
+  @ApiOperation({ summary: 'Вернуть расписание для выбранного преподавателя' })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      type: 'object',
+      properties: {
+        isCache: { type: 'boolean' },
+        teacher: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            name: { type: 'string' },
+          },
+        },
+        items: {
+          type: 'array',
+          items: { $ref: getSchemaPath(TeacherOneWeekDto) },
+        },
+      },
+    },
+  })
+  @ApiExtraModels(TeacherOneWeekDto)
+  async getByTeacher(@Param('teacherId', ParseIntPipe) teacherId: number) {
+    const result = await this.scheduleService.getByTeacher(teacherId);
+
+    if (!result) {
+      throw new NotFoundException('teacher not found by this name or id');
     }
     return result;
   }

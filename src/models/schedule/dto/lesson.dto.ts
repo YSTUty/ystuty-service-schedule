@@ -1,6 +1,12 @@
+import { Exclude, plainToClass } from 'class-transformer';
+import { ApiHideProperty } from '@nestjs/swagger';
 import { LessonFlags, WeekParityType } from '@my-interfaces';
 
 export class LessonDto {
+  @Exclude({ toPlainOnly: true })
+  @ApiHideProperty()
+  trainingId?: number;
+
   /**
    * Порядковый номер пары на дню
    */
@@ -78,4 +84,10 @@ export class LessonDto {
    * Дополнительная информация
    */
   subInfo?: string;
+
+  constructor(input?: Partial<LessonDto>) {
+    if (input) {
+      Object.assign(this, plainToClass(LessonDto, input));
+    }
+  }
 }
