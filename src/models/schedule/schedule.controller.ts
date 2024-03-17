@@ -30,6 +30,41 @@ import { GroupDetailDto, InstituteGroupsDto, OneWeekDto } from './dto';
 export class ScheduleController {
   constructor(private readonly scheduleService: ScheduleService) {}
 
+  @Get('count')
+  @Version('1')
+  @ApiOperation({ summary: 'Вернуть список с количеством различных данных' })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      type: 'object',
+      properties: {
+        isCache: { type: 'boolean' },
+        institutes: { type: 'number', example: 8 },
+        groups: { type: 'number', example: 256 },
+        teachers: { type: 'number', example: 460 },
+        audiences: { type: 'number', example: 260 },
+      },
+    },
+  })
+  async getCount() {
+    const institutes = await this.scheduleService.getCount('institute');
+    const groups = await this.scheduleService.getCount('group');
+    const teachers = await this.scheduleService.getCount('teachers');
+    const audiences = await this.scheduleService.getCount('audiences');
+
+    return {
+      isCache:
+        institutes.isCache ||
+        groups.isCache ||
+        teachers.isCache ||
+        audiences.isCache,
+      institutes: institutes.count,
+      groups: groups.count,
+      teachers: teachers.count,
+      audiences: audiences.count,
+    };
+  }
+
   @Get('actual_groups')
   @Version('1')
   @Throttle({ default: { limit: 4, ttl: 10e3 } })

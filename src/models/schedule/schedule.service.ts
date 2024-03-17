@@ -35,6 +35,65 @@ export class ScheduleService {
     private readonly redisService: RedisService,
   ) {}
 
+  async getCount(
+    type: 'institute' | 'group' | 'teachers' | 'audiences',
+    idSchedule: number = 0,
+  ) {
+    const cacheKey = `count:${idSchedule}:${type}`;
+    let response: {
+      isCache: boolean;
+      count: number;
+    } = {
+      isCache: undefined,
+      count: null,
+    };
+    if (this.allowCaching) {
+      try {
+        const cachedData = await this.redisService.redis.get(cacheKey);
+        if (cachedData) {
+          response = JSON.parse(cachedData);
+          return { isCache: true, count: response.count || null };
+        }
+      } catch (err) {
+        this.logger.error(err);
+      }
+    }
+
+    let info: {
+      items: any[];
+      isCache: boolean;
+      count?: number;
+    } = null;
+    if (type === 'group' || type === 'institute') {
+      info = await this.getGroups(idSchedule, false);
+    } else if (type === 'audiences') {
+      info = await this.getAudiencesBySchedule(idSchedule);
+    } else if (type === 'teachers') {
+      info = await this.getTeachersBySchedule(idSchedule);
+    }
+
+    if (!info) {
+      return response;
+    }
+    response = {
+      isCache: info.isCache,
+      count:
+        type === 'group'
+          ? info.items.flatMap((e) => e.groups).length
+          : info.count ?? info.items.length,
+    };
+
+    if (this.allowCaching && response) {
+      await this.redisService.redis.set(
+        cacheKey,
+        JSON.stringify(response),
+        'EX',
+        60 * 10,
+      );
+    }
+    return response;
+  }
+
   async getGroups(idSchedule: number, additional = true) {
     const cacheKey = `groups:${idSchedule}:additional-${additional}`;
     if (this.allowCaching) {
