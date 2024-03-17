@@ -39,9 +39,7 @@ export class ScheduleController {
     schema: {
       type: 'object',
       properties: {
-        // isCache: {
-        //   type: 'boolean',
-        // },
+        isCache: { type: 'boolean' },
         name: {
           type: 'string',
           description: 'Название семестра',
@@ -102,9 +100,7 @@ export class ScheduleController {
     schema: {
       type: 'object',
       properties: {
-        isCache: {
-          type: 'boolean',
-        },
+        isCache: { type: 'boolean' },
         items: {
           type: 'array',
           items: {
@@ -133,6 +129,44 @@ export class ScheduleController {
     return result;
   }
 
+  @Get('teachers')
+  @Version('1')
+  @ApiOperation({ summary: 'Список преподавателей в текущем семестре' })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      type: 'object',
+      properties: {
+        isCache: { type: 'boolean' },
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              name: { type: 'string' },
+            },
+          },
+          example: [
+            { id: 1, name: 'Иванов Иван Иванович' },
+            { id: 2, name: 'Петров Петр Петрович' },
+            { id: 3, name: 'Сидоров Сидор Сидорович' },
+            { id: 4, name: 'Семенов Семен Семенович' },
+            { id: 5, name: 'Павлов Павел Павлович' },
+          ],
+        },
+      },
+    },
+  })
+  async getTeachers() {
+    const result = await this.scheduleService.getTeachersBySchedule(0);
+
+    if (!result) {
+      throw new NotFoundException('teachers not found for current shedule');
+    }
+    return result;
+  }
+
   @Get('audiences')
   @Version('1')
   @ApiOperation({ summary: 'Вернуть список аудиторий на текущий семестр' })
@@ -141,6 +175,7 @@ export class ScheduleController {
     schema: {
       type: 'object',
       properties: {
+        isCache: { type: 'boolean' },
         items: {
           type: 'array',
           items: {

@@ -427,6 +427,87 @@ export class ScheduleService {
     return { isCache: false, items };
   }
 
+  async getTeachersBySchedule(idSchedule: number) {
+    const cacheKey = `teachers_schedule:${idSchedule}`;
+    if (this.allowCaching) {
+      try {
+        const cachedData = await this.redisService.redis.get(cacheKey);
+        if (cachedData) {
+          const items = JSON.parse(cachedData) as {
+            id: number;
+            name: string;
+          }[];
+          return { isCache: true, items, count: items.length };
+        }
+      } catch (err) {
+        this.logger.error(err);
+      }
+    }
+
+    const qb = this.raspzViewRepository
+      .createQueryBuilder('r')
+      .where('1=1')
+      // .andWhere('childz = :childz', { childz: 0 })
+      .select('r.prep', 'prep1')
+      .addSelect('r.prep2', 'prep2')
+
+      .addSelect('pr_1.fio1', 'teacherName_1')
+      .addSelect('pr_2.fio1', 'teacherName_2')
+      .leftJoin('prep', 'pr_1', 'r.prep = pr_1.idprep')
+      .leftJoin('prep', 'pr_2', 'r.prep2 = pr_2.idprep')
+
+      .groupBy('pr_1.fio1')
+      .addGroupBy('r.prep')
+
+      .addGroupBy('pr_2.fio1')
+      .addGroupBy('r.prep2')
+      // .addGroupBy('r.IDraspz')
+
+      .orderBy('pr_1.fio1', 'ASC')
+      .addOrderBy('pr_2.fio1', 'ASC');
+
+    if (idSchedule > 0) {
+      qb.andWhere('IDraspz = :idSchedule', { idSchedule });
+    } else {
+      qb.innerJoin('raspz_nastr', 'n', 'n.idraspz = r.IDraspz');
+      qb.andWhere('n.fl_pub > 0');
+    }
+
+    const map: Map<number, string> = new Map();
+    const raspz = (await qb.getRawMany()) as Partial<{
+      teacherName_1: string;
+      prep1: number;
+      teacherName_2: string;
+      prep2: number;
+    }>[];
+    for (const item of raspz) {
+      if (item.teacherName_1) {
+        map.set(item.prep1, item.teacherName_1);
+      }
+      if (item.teacherName_2) {
+        map.set(item.prep2, item.teacherName_2);
+      }
+    }
+
+    const items = [...map.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    if (items.length === 0) {
+      return null;
+    }
+
+    if (this.allowCaching) {
+      await this.redisService.redis.set(
+        cacheKey,
+        JSON.stringify(items),
+        'EX',
+        60 * 5,
+      );
+    }
+    return { isCache: false, items, count: items.length };
+  }
+
   async getAudiencesBySchedule(idSchedule: number) {
     const cacheKey = `audiences_schedule:${idSchedule}`;
     if (this.allowCaching) {
