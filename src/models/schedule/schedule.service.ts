@@ -412,6 +412,83 @@ export class ScheduleService {
     return { isCache: false, items };
   }
 
+  async getAudiencesBySchedule(idSchedule: number) {
+    const cacheKey = `audiences_schedule:${idSchedule}`;
+    if (this.allowCaching) {
+      try {
+        const cachedData = await this.redisService.redis.get(cacheKey);
+        if (cachedData) {
+          const items = JSON.parse(cachedData) as {
+            id: number;
+            name: string;
+          }[];
+          return { isCache: true, items, count: items.length };
+        }
+      } catch (err) {
+        this.logger.error(err);
+      }
+    }
+
+    const qb = this.raspzViewRepository
+      .createQueryBuilder('r')
+      .where('1=1')
+      // .andWhere('childz = :childz', { childz: 0 })
+      .select(['r.nameaudi', 'r.audi'])
+      .addSelect(['r.nameaudi2', 'r.audi2'])
+      // .addSelect('r.IDraspz')
+
+      .groupBy('r.nameaudi')
+      .addGroupBy('r.audi')
+
+      .addGroupBy('r.nameaudi2')
+      .addGroupBy('r.audi2')
+      // .addGroupBy('r.IDraspz')
+
+      .orderBy('nameaudi', 'ASC')
+      .addOrderBy('nameaudi2', 'ASC');
+
+    if (idSchedule > 0) {
+      qb.andWhere('IDraspz = :idSchedule', { idSchedule });
+    } else {
+      qb.innerJoin('raspz_nastr', 'n', 'n.idraspz = r.IDraspz');
+      qb.andWhere('n.fl_pub > 0');
+    }
+
+    let audiences: Map<number, string> = new Map();
+    const raspz = (await qb.getRawMany()) as Partial<{
+      nameaudi: string;
+      audi: number;
+      nameaudi2: string;
+      audi2: number;
+    }>[];
+    for (const item of raspz) {
+      if (item.nameaudi) {
+        audiences.set(item.audi, item.nameaudi);
+      }
+      if (item.nameaudi2) {
+        audiences.set(item.audi2, item.nameaudi2);
+      }
+    }
+
+    const items = [...audiences.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    if (items.length === 0) {
+      return null;
+    }
+
+    if (this.allowCaching) {
+      await this.redisService.redis.set(
+        cacheKey,
+        JSON.stringify(items),
+        'EX',
+        60 * 5,
+      );
+    }
+    return { isCache: false, items, count: items.length };
+  }
+
   private injectExams(schedule: OneWeekDto[], exams: IExamDay[]) {
     for (const exam of exams) {
       let targetDay: OneDayDto = null;

@@ -132,4 +132,42 @@ export class ScheduleController {
     }
     return result;
   }
+
+  @Get('audiences')
+  @Version('1')
+  @ApiOperation({ summary: 'Вернуть список аудиторий на текущий семестр' })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      type: 'object',
+      properties: {
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              name: { type: 'string' },
+            },
+          },
+          example: [
+            { id: 601, name: 'В-201' },
+            { id: 354, name: 'Б-203' },
+          ],
+        },
+        count: {
+          type: 'number',
+          example: 2,
+        },
+      },
+    },
+  })
+  async getAudiences() {
+    const result = await this.scheduleService.getAudiencesBySchedule(0);
+
+    if (!result) {
+      throw new NotFoundException('audience not found for current shedule');
+    }
+    return result;
+  }
 }
