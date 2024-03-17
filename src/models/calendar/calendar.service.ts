@@ -49,7 +49,7 @@ export class CalendarService {
         .summary(
           `${
             lesson.isDistant ? '(🖥) ' : ''
-          }[${getLessonTypeStrArr(lesson.type).join('|')}] ${
+          }[${getLessonTypeStrArr(lesson.type).join('/')}] ${
             lesson.lessonName || lesson.subInfo
           }${((e) => (e ? ` [${e}]` : ''))(lesson.auditoryName)}`,
         )
@@ -70,6 +70,40 @@ export class CalendarService {
     return calendar;
   }
 
+  public async generateCalenadrForTeacher(teacherId: number) {
+    const schedule = await this.scheduleService.getByTeacher(teacherId);
+    if (!schedule) {
+      return null;
+    }
+    const { teacher } = schedule;
+
+    const calendar = this.generateCalendar()
+      .name(`YSTUty [${teacher.name}]`)
+      .source(`${xEnv.CUSTOM_CALENDAR_URL}/teacher/${teacherId}.ical`)
+      .description(`Расписание занятий ЯГТУ для преподавателя ${teacher.name}`);
+
+    for (const lesson of schedule.items.flatMap((e) =>
+      e.days.flatMap((e) => e.lessons),
+    )) {
+      const event = this.createLessonEvent(calendar, lesson)
+        .summary(
+          `${lesson.isDistant ? '(🖥) ' : ''}[${getLessonTypeStrArr(
+            lesson.type,
+          ).join('/')}] ${lesson.lessonName || lesson.subInfo}${((e) =>
+            e ? ` [${e}]` : '')(lesson.auditoryName)}`,
+        )
+        .description(
+          `${((e) => (e ? `[${e}]` : ''))(lesson.auditoryName)}${
+            lesson.isDistant ? ' (Дистант)' : ''
+          } Групп${
+            lesson.groups.length > 1 ? 'а' : 'ы'
+          } (${lesson.groups.join(', ')})`,
+        );
+    }
+
+    return calendar;
+  }
+
   public createLessonEvent(calendar: ICalCalendar, lesson: LessonDto) {
     const event = calendar
       .createEvent({
@@ -79,7 +113,12 @@ export class CalendarService {
       .status(ICalEventStatus.CONFIRMED)
       .transparency(ICalEventTransparency.OPAQUE);
 
-    if (moment(lesson.startAt).isBefore(moment(lesson.endAt), 'day')) {
+    if (
+      moment(lesson.startAt).isBefore(
+        moment(lesson.endAt).add(1, 'hour'),
+        'day',
+      )
+    ) {
       event.allDay(true);
     }
 
