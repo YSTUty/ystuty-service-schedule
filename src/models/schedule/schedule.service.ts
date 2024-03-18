@@ -736,16 +736,16 @@ export class ScheduleService {
 
       const curLesson =
         (streamRefId || rType !== 'group') &&
-        curDay.lessons.find((e) =>
-          streamRefId
-            ? e.trainingId === streamRefId
-            : // * Фикс пар, которые не объединили в поток
-              e.startAt.toString() === startAt.toString() &&
+        curDay.lessons.find(
+          (e) =>
+            (streamRefId && e.trainingId === streamRefId) ||
+            // * Фикс пар, которые не объединили в поток
+            (e.startAt.toString() === startAt.toString() &&
               e.duration === academicHours * 2 &&
               e.isDistant === isDistant &&
               e.lessonName === lessonName &&
               e.teacherId === teacherId_1 &&
-              e.auditoryName === auditoryName_1,
+              e.auditoryName === auditoryName_1),
         );
         if (curLesson) {
           if (rType !== 'group') {
