@@ -6,9 +6,9 @@
   <br/>
   <a href="https://vk.com/ss_ystu"><img src="https://img.shields.io/badge/Bot-Use now-9cf?style=flat-square&logo=vk" alt="vk.com/ss_ystu"/></a>
   <a href="https://t.me/ss_ystu_bot"><img src="https://img.shields.io/badge/Bot-Use now-229ED9?style=flat-square&logo=telegram" alt="t.me/ss_ystu_bot"/></a>
-  <!-- <br/>
-  <img src="https://img.shields.io/badge/dynamic/json?color=ced&style=flat-square&logo=GraphQL&label=Доступно&suffix= групп&query=$.groups&url=https://s-schedule.ystuty.ru/api/schedule/count" alt="Number of available groups"/>
-  <img src="https://img.shields.io/badge/dynamic/json?color=ced&style=flat-square&logo=GraphQL&label=Доступно&suffix= преподавателей&query=$.teachers&url=https://s-schedule.ystuty.ru/api/schedule/count" alt="Number of available teachers"/> -->
+  <br/>
+  <img src="https://img.shields.io/badge/dynamic/json?color=ced&style=flat-square&logo=GraphQL&label=Доступно групп&suffix= 🎓&query=$.groups&url=https://gg-api.ystuty.ru/s/schedule/v1/schedule/count" alt="Number of available groups"/>
+  <img src="https://img.shields.io/badge/dynamic/json?color=ced&style=flat-square&logo=GraphQL&label=Доступно преподавателей&suffix= 👨‍🏫&query=$.teachers&url=https://gg-api.ystuty.ru/s/schedule/v1/schedule/count" alt="Number of available teachers"/>
   <br/>
   <a href="https://view.ystuty.ru" target="_blank"><img src="https://img.shields.io/badge/Viwe%20schedule-YSTUty-9cf?style=flat-square&logo=Internet%20Explorer" alt="view.ystuty.ru"/></a>
 </p>
