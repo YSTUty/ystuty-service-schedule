@@ -694,8 +694,6 @@ export class ScheduleService {
         lessonName,
         auditoryName_1,
         auditoryName_2,
-        auditoryId: auditoryId_1,
-        auditoryId_2,
         teacherName_1,
         teacherName_2,
         teacherId: teacherId_1,
@@ -736,9 +734,18 @@ export class ScheduleService {
         (curWeek.days as OneDayDto[]).push(curDay);
       }
 
-      if (streamRefId) {
-        const curLesson = curDay.lessons.find(
-          (e) => e.trainingId === streamRefId,
+      const curLesson =
+        (streamRefId || rType !== 'group') &&
+        curDay.lessons.find((e) =>
+          streamRefId
+            ? e.trainingId === streamRefId
+            : // * Фикс пар, которые не объединили в поток
+              e.startAt.toString() === startAt.toString() &&
+              e.duration === academicHours * 2 &&
+              e.isDistant === isDistant &&
+              e.lessonName === lessonName &&
+              e.teacherId === teacherId_1 &&
+              e.auditoryName === auditoryName_1,
         );
         if (curLesson) {
           if (rType !== 'group') {
@@ -746,7 +753,6 @@ export class ScheduleService {
           }
           continue;
         }
-      }
 
       let number = lessonNumber;
       if (number > 2 || number > 7) {
