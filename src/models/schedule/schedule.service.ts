@@ -457,6 +457,7 @@ export class ScheduleService {
         .select('e.data', 'date')
         .addSelect('p.namepredmet', 'lessonName')
         .addSelect('a.nameaudi', 'auditoryName')
+        .addSelect('g.namegroup', 'groupName')
         .addSelect('pr.fio1', 'teacherName')
         .addSelect('e.note', 'note')
 
@@ -685,7 +686,7 @@ export class ScheduleService {
 
     const weeks: OneWeekDto[] = [];
     for (const raw of raspz) {
-      const {
+      let {
         date,
         startAt,
         lessonNumber,
@@ -797,7 +798,7 @@ export class ScheduleService {
       );
       const typeGroups = additionalInfo.match(typeRegExp).groups || {};
       // const isOnline = !!typeGroups.online;
-      const subInfo = typeGroups.subInfo;
+      let subInfo = typeGroups.subInfo;
 
       let type: LessonFlags = [
         lessonTypeShortName || '',
@@ -833,10 +834,17 @@ export class ScheduleService {
         }
       }
 
-      if (type === LessonFlags.None && lessonName) {
+      if (type === LessonFlags.None) {
+        if (lessonName?.length > 0) {
         // TODO: add more combinations
         if (lessonName.includes('исследовательская работа')) {
           type |= LessonFlags.ResearchWork;
+          }
+        } else if (subInfo?.length > 0) {
+          // TODO: add more combinations
+          lessonName = subInfo;
+          subInfo = undefined;
+          type |= LessonFlags.Unsupported;
         }
       }
 
@@ -872,7 +880,10 @@ export class ScheduleService {
       });
 
       if (rType !== 'group') {
-        lesson.groups = [groupName];
+        lesson.groups = [];
+        if (groupName) {
+          lesson.groups.push(groupName);
+        }
       }
 
       curDay.lessons.push(lesson);
@@ -927,7 +938,10 @@ export class ScheduleService {
       });
 
       if (rType !== 'group') {
-        lessonFormat.groups = [exam.groupName];
+        lessonFormat.groups = [];
+        if (exam.groupName) {
+          lessonFormat.groups.push(exam.groupName);
+        }
       }
       if (rType !== 'teacher') {
         lessonFormat.teacherName = exam.teacherName;
