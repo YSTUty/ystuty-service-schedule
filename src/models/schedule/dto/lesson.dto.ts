@@ -6,7 +6,10 @@ export class LessonDto {
   @Exclude({ toPlainOnly: true })
   @ApiHideProperty()
   trainingId?: number;
-
+  /**
+   * Названия групп
+   */
+  groups?: string[];
   /**
    * Порядковый номер пары на дню
    */
@@ -18,10 +21,12 @@ export class LessonDto {
   timeRange: string;
   /**
    * Timestamp начала пары
+   * @example '2024-06-04T09:20:00.000Z'
    */
   startAt?: string | Date;
   /**
    * Timestamp конца пары
+   * @example '2024-06-04T12:30:00.000Z'
    */
   endAt?: string | Date;
   /**

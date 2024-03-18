@@ -22,17 +22,12 @@ import {
 import { Throttle } from '@nestjs/throttler';
 
 import { ScheduleService } from './schedule.service';
-import {
-  AudienceOneWeekDto,
-  GroupDetailDto,
-  InstituteGroupsDto,
-  OneWeekDto,
-  TeacherOneWeekDto,
-} from './dto';
+import { GroupDetailDto, InstituteGroupsDto, OneWeekDto } from './dto';
 
 @ApiTags('schedule')
 @Controller('/schedule')
 @UseInterceptors(ClassSerializerInterceptor)
+@ApiExtraModels(OneWeekDto)
 export class ScheduleController {
   constructor(private readonly scheduleService: ScheduleService) {}
 
@@ -144,14 +139,11 @@ export class ScheduleController {
         isCache: { type: 'boolean' },
         items: {
           type: 'array',
-          items: {
-            $ref: getSchemaPath(OneWeekDto),
-          },
+          items: { $ref: getSchemaPath(OneWeekDto) },
         },
       },
     },
   })
-  @ApiExtraModels(OneWeekDto)
   async getByGroup(
     @Param('groupIdOrName') groupIdOrName: string,
     @Query('idschedule', new DefaultValuePipe(0), ParseIntPipe)
@@ -226,12 +218,11 @@ export class ScheduleController {
         },
         items: {
           type: 'array',
-          items: { $ref: getSchemaPath(TeacherOneWeekDto) },
+          items: { $ref: getSchemaPath(OneWeekDto) },
         },
       },
     },
   })
-  @ApiExtraModels(TeacherOneWeekDto)
   async getByTeacher(@Param('teacherId', ParseIntPipe) teacherId: number) {
     const result = await this.scheduleService.getByTeacher(teacherId);
 
@@ -304,12 +295,11 @@ export class ScheduleController {
         },
         items: {
           type: 'array',
-          items: { $ref: getSchemaPath(AudienceOneWeekDto) },
+          items: { $ref: getSchemaPath(OneWeekDto) },
         },
       },
     },
   })
-  @ApiExtraModels(AudienceOneWeekDto)
   async getByAudience(
     @Param('audienceIdOrName') audienceIdOrName: string,
     @Query('idschedule', new DefaultValuePipe(0), ParseIntPipe)

@@ -11,16 +11,7 @@ import {
 } from '@my-common';
 
 import { Exam, ScheduleView, Teacher } from './entity';
-import {
-  InstituteGroupsDto,
-  LessonDto,
-  TeacherLessonDto,
-  OneDayDto,
-  OneWeekDto,
-  TeacherOneWeekDto,
-  AudienceOneWeekDto,
-  AudienceLessonDto,
-} from './dto';
+import { InstituteGroupsDto, LessonDto, OneDayDto, OneWeekDto } from './dto';
 import { RedisService } from '../redis/redis.service';
 
 interface IExamDay {
@@ -250,13 +241,9 @@ export class ScheduleService {
       .addOrderBy('nned', 'ASC')
       .addOrderBy('npar', 'ASC');
 
-    let targetId: number = null;
-    let targetName: string = null;
     if (!isNaN(Number(groupIdOrName))) {
-      targetId = Number(groupIdOrName);
       qb.andWhere('idgr = :id', { id: groupIdOrName });
     } else {
-      targetName = groupIdOrName as string;
       qb.andWhere('LOWER(namegr) = LOWER(:name)', {
         name: groupIdOrName,
       });
@@ -270,7 +257,7 @@ export class ScheduleService {
     }
 
     const raspz = await qb.getMany();
-    const weeks = this.createWeek(raspz, 'group', targetId, targetName);
+    const weeks = this.createWeek(raspz, 'group');
 
     // use exams
     if (!idSchedule) {
@@ -330,7 +317,7 @@ export class ScheduleService {
               name: string;
               id: number;
             };
-            items: TeacherOneWeekDto[];
+            items: OneWeekDto[];
           };
           return { isCache: true, ...response };
         }
@@ -360,7 +347,7 @@ export class ScheduleService {
     }
 
     const raspz = await qb.getMany();
-    const weeks = this.createWeek(raspz, 'teacher', teacherId);
+    const weeks = this.createWeek(raspz, 'teacher');
 
     // use exams
     if (!idSchedule) {
@@ -440,13 +427,9 @@ export class ScheduleService {
       .addOrderBy('nned', 'ASC')
       .addOrderBy('npar', 'ASC');
 
-    let targetId: number = null;
-    let targetName: string = null;
     if (!isNaN(Number(audienceIdOrName))) {
-      targetId = Number(audienceIdOrName);
       qb.andWhere('(audi = :id OR audi2 = :id)', { id: audienceIdOrName });
     } else {
-      targetName = audienceIdOrName as string;
       qb.andWhere(
         '(LOWER(nameaudi) = LOWER(:name) OR LOWER(nameaudi2) = LOWER(:name))',
         { name: audienceIdOrName },
@@ -461,7 +444,7 @@ export class ScheduleService {
     }
 
     const raspz = await qb.getMany();
-    const weeks = this.createWeek(raspz, 'audience', targetId, targetName);
+    const weeks = this.createWeek(raspz, 'audience');
 
     // use exams
     if (!idSchedule) {
@@ -671,31 +654,9 @@ export class ScheduleService {
     return { isCache: false, items, count: items.length };
   }
 
-  private createWeek<TW = OneWeekDto>(
-    raspz: ScheduleView[],
-    type: 'group',
-    targetId?: number,
-    targetName?: string,
-  ): TW[];
-  private createWeek<TW = TeacherOneWeekDto>(
-    raspz: ScheduleView[],
-    type: 'teacher',
-    targetId?: number,
-    targetName?: string,
-  ): TW[];
-  private createWeek<TW = AudienceOneWeekDto>(
-    raspz: ScheduleView[],
-    type: 'audience',
-    targetId?: number,
-    targetName?: string,
-  ): TW[];
-  private createWeek<
-    TW extends OneWeekDto | TeacherOneWeekDto | AudienceOneWeekDto,
-  >(
+  private createWeek(
     raspz: ScheduleView[],
     rType: 'group' | 'teacher' | 'audience',
-    targetId?: number,
-    targetName?: string,
   ) {
     let parityOnWeekMap: Map<number, WeekParityType> = new Map();
     const parityOnWeek = (trainingId: number): WeekParityType => {
@@ -722,7 +683,7 @@ export class ScheduleService {
       return res;
     };
 
-    const weeks: TW[] = [];
+    const weeks: OneWeekDto[] = [];
     for (const raw of raspz) {
       const {
         date,
@@ -756,7 +717,7 @@ export class ScheduleService {
         curWeek = {
           number: weekNumber,
           days: [],
-        } as TW;
+        };
         weeks.push(curWeek);
       }
 
@@ -781,7 +742,7 @@ export class ScheduleService {
         );
         if (curLesson) {
           if (rType !== 'group') {
-            (curLesson as TeacherLessonDto).groups.push(groupName);
+            curLesson.groups.push(groupName);
           }
           continue;
         }
@@ -873,17 +834,13 @@ export class ScheduleService {
         }
       }
 
-      const lessonDto =
-        rType === 'group'
-          ? LessonDto
-          : rType === 'teacher'
-            ? TeacherLessonDto
-            : AudienceLessonDto;
-
-      const lesson = new lessonDto({
+      const lesson = new LessonDto({
         trainingId,
         number,
         startAt,
+        endAt: new Date(
+          startAt.getTime() + durationMinutes * 60e3,
+        ).toISOString(),
         timeRange,
         originalTimeTitle: `${lessonNumber}. ${originalTime}`,
         parity: parityOnWeek(trainingId),
@@ -903,60 +860,23 @@ export class ScheduleService {
         //   [auditoryName_1, auditoryName_2].filter(Boolean).join('; ').trim() ||
         //   null,
         isDistant,
-        endAt: new Date(
-          startAt.getTime() + durationMinutes * 60e3,
-        ).toISOString(),
         subInfo,
         isShort,
         isLecture: lectureFlag > 0,
       });
 
-      if (lesson instanceof TeacherLessonDto) {
+      if (rType !== 'group') {
         lesson.groups = [groupName];
-        lesson.teacherName = teacherName_1;
-        lesson.teacherId = teacherId_1;
-
-        // if (targetName || targetId) {
-        //   const cond2 = targetName
-        //     ? teacherName_2 &&
-        //       teacherName_2.toLowerCase() === targetName.toLowerCase()
-        //     : teacherId_2 && teacherId_2 === targetId;
-        //   if (cond2) {
-        //     lesson.teacherName = teacherName_2;
-        //     lesson.teacherId = teacherId_2;
-        //     lesson.additionalTeacherName = teacherName_1;
-        //     lesson.additionalTeacherId = teacherId_1;
-        //   }
-        // }
-      } else if (lesson instanceof AudienceLessonDto) {
-        lesson.groups = [groupName];
-
-        // if (targetName || targetId) {
-        //   const cond2 = targetName
-        //     ? auditoryName_2 &&
-        //       auditoryName_2.toLowerCase() === targetName.toLowerCase()
-        //     : auditoryId_1 && auditoryId_1 === targetId;
-        //   if (cond2) {
-        //     lesson.teacherName = auditoryName_2;
-        //     lesson.additionalTeacherName = auditoryName_1;
-        //   }
-        // }
-      }
-      // LessonDto
-      else {
-        lesson.teacherName =
-          [teacherName_1, teacherName_2].filter(Boolean).join('; ').trim() ||
-          null;
       }
 
-      (curDay.lessons as (typeof lesson)[]).push(lesson);
+      curDay.lessons.push(lesson);
     }
 
     return weeks;
   }
 
   private injectExams(
-    schedule: (OneWeekDto | TeacherOneWeekDto)[],
+    schedule: OneWeekDto[],
     exams: IExamDay[],
     rType: 'group' | 'teacher' | 'audience' = 'group',
   ) {
@@ -998,7 +918,7 @@ export class ScheduleService {
         isDivision: false,
         auditoryName: exam.auditoryName,
         subInfo: exam.note,
-      }) as LessonDto & Partial<TeacherLessonDto>;
+      });
 
       if (rType !== 'group') {
         lessonFormat.groups = [exam.groupName];
@@ -1033,8 +953,7 @@ export class ScheduleService {
         };
         weekIndex += schedule.push(newWeek);
       }
-      const days = schedule[weekIndex].days as OneDayDto[];
-      days.push(oneDayExam);
+      schedule[weekIndex].days.push(oneDayExam);
     }
   }
 }
