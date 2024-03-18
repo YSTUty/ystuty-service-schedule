@@ -23,6 +23,7 @@ import { Throttle } from '@nestjs/throttler';
 
 import { ScheduleService } from './schedule.service';
 import {
+  AudienceOneWeekDto,
   GroupDetailDto,
   InstituteGroupsDto,
   OneWeekDto,
@@ -240,7 +241,7 @@ export class ScheduleController {
     return result;
   }
 
-  @Get('audiences')
+  @Get('actual_audiences')
   @Version('1')
   @ApiOperation({ summary: 'Вернуть список аудиторий на текущий семестр' })
   @ApiResponse({
@@ -277,5 +278,52 @@ export class ScheduleController {
       throw new NotFoundException('audience not found for current shedule');
     }
     return result;
+  }
+
+  @Get('audience/:audienceIdOrName')
+  @Version('1')
+  @ApiOperation({ summary: 'Вернуть расписание для выбранной аудитории' })
+  @ApiQuery({
+    name: 'idschedule',
+    description: '',
+    type: Number,
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      type: 'object',
+      properties: {
+        isCache: { type: 'boolean' },
+        audience: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            name: { type: 'string' },
+          },
+        },
+        items: {
+          type: 'array',
+          items: { $ref: getSchemaPath(AudienceOneWeekDto) },
+        },
+      },
+    },
+  })
+  @ApiExtraModels(AudienceOneWeekDto)
+  async getByAudience(
+    @Param('audienceIdOrName') audienceIdOrName: string,
+    @Query('idschedule', new DefaultValuePipe(0), ParseIntPipe)
+    idSchedule: number,
+  ) {
+    const data = await this.scheduleService.getByAudience(
+      audienceIdOrName,
+      idSchedule,
+    );
+    if (!data) {
+      throw new NotFoundException(
+        `audience not found by this name or id${idSchedule ? ' or idschedule' : ''}`,
+      );
+    }
+    return data;
   }
 }

@@ -18,6 +18,8 @@ import {
   OneDayDto,
   OneWeekDto,
   TeacherOneWeekDto,
+  AudienceOneWeekDto,
+  AudienceLessonDto,
 } from './dto';
 import { RedisService } from '../redis/redis.service';
 
@@ -248,11 +250,15 @@ export class ScheduleService {
       .addOrderBy('nned', 'ASC')
       .addOrderBy('npar', 'ASC');
 
+    let targetId: number = null;
+    let targetName: string = null;
     if (!isNaN(Number(groupIdOrName))) {
-      qb.andWhere('idgr = :idgr', { idgr: groupIdOrName });
+      targetId = Number(groupIdOrName);
+      qb.andWhere('idgr = :id', { id: groupIdOrName });
     } else {
-      qb.andWhere('LOWER(namegr) = LOWER(:namegr)', {
-        namegr: groupIdOrName,
+      targetName = groupIdOrName as string;
+      qb.andWhere('LOWER(namegr) = LOWER(:name)', {
+        name: groupIdOrName,
       });
     }
 
@@ -264,194 +270,7 @@ export class ScheduleService {
     }
 
     const raspz = await qb.getMany();
-
-    let parityOnWeekMap: Map<number, WeekParityType> = new Map();
-    const parityOnWeek = (trainingId: number): WeekParityType => {
-      if (parityOnWeekMap.has(trainingId)) {
-        return parityOnWeekMap.get(trainingId);
-      }
-      let total = 0;
-      let odd = 0;
-      for (const raw of raspz) {
-        if (raw.trainingId === trainingId) {
-          ++total;
-          if (raw.weekNumber % 2 === 1) {
-            ++odd;
-          }
-        }
-      }
-      let res =
-        total === odd
-          ? WeekParityType.ODD
-          : odd === 0
-            ? WeekParityType.EVEN
-            : WeekParityType.CUSTOM;
-      parityOnWeekMap.set(trainingId, res);
-      return res;
-    };
-
-    const weeks: OneWeekDto[] = [];
-    for (const raw of raspz) {
-      const {
-        date,
-        startAt,
-        lessonNumber,
-        weekNumber,
-        timeInterval,
-        lessonName,
-        auditoryName_1,
-        auditoryName_2,
-        teacherName_1,
-        teacherName_2,
-        streamRefId,
-        academicHours,
-        isShort,
-        isDistant,
-        isDivision,
-        lessonTypeShortName,
-        additionalInfo,
-        trainingId,
-        lectureFlag,
-      } = raw;
-
-      let curWeek = weeks.find((e) => e.number === weekNumber);
-      if (!curWeek) {
-        curWeek = {
-          number: weekNumber,
-          days: [],
-        };
-        weeks.push(curWeek);
-      }
-
-      let curDay = curWeek.days.find(
-        (e) => e.info.date.toString() === date.toString(),
-      );
-      if (!curDay) {
-        curDay = {
-          info: {
-            type: moment(date).day() - 1,
-            weekNumber,
-            date,
-          },
-          lessons: [],
-        };
-        curWeek.days.push(curDay);
-      }
-
-      let number = lessonNumber;
-      if (number > 2 || number > 7) {
-        --number;
-      }
-
-      const durationMinutes = ((f, fixT = 1) => f * 90 + (f - fixT) * 10)(
-        Math.floor(academicHours),
-        academicHours > 1 ? (number === 2 ? -2 : number === 5 ? 0 : 1) : 1,
-      );
-
-      let timeRange = timeInterval;
-      let [startTime, endTime] = timeInterval.split('-');
-      if (academicHours > 1 && startTime && endTime) {
-        const dateTime = new Date(0);
-        const ds = startTime.split(':').map(Number);
-        dateTime.setHours(ds[0], ds[1]);
-        dateTime.setMinutes(dateTime.getMinutes() + durationMinutes);
-        endTime = `${dateTime.getHours().toString().padStart(2, '0')}:${dateTime
-          .getMinutes()
-          .toString()
-          .padStart(2, '0')}`;
-        timeRange = `${startTime}-${endTime}`;
-      }
-
-      let originalTime =
-        academicHours > 1 ? `${startTime}-...${academicHours * 2}ч` : timeRange;
-
-      if (isShort) timeRange += ' [SHORT]';
-
-      const typeRegExp = new RegExp(
-        '' +
-          '( ?(?<online>\\(онлайн\\)))?' +
-          '(,? ?(\\+ ?)?(?<types2>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
-          '(,? ?(\\+ ?)?(?<types3>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
-          '(,? ?(\\+ ?)?(?<types4>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
-          '(,? ?(\\+ ?)?(?<types5>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
-          '(,? ?\\(\\+(?<types6>teams|лекция|лек\\.?|лаб\\.?|пр\\.?з?\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.?зач\\.?|экз\\.?)\\))?' +
-          ',?\\+?' +
-          '( ?(?<subInfo>.*))?',
-        'i',
-      );
-      const typeGroups = additionalInfo.match(typeRegExp).groups || {};
-      // const isOnline = !!typeGroups.online;
-      const subInfo = typeGroups.subInfo;
-
-      let type: LessonFlags = [
-        lessonTypeShortName || '',
-        typeGroups.types2 || '',
-        typeGroups.types3 || '',
-        typeGroups.types4 || '',
-        typeGroups.types5 || '',
-        typeGroups.types6 || '',
-      ]
-        .filter(Boolean)
-        .flatMap((e) => e.split(','))
-        .map((e) => e.trim().toLowerCase())
-        .filter(Boolean)
-        .reduce(
-          (prev, type) => (prev |= getLessonTypeFromStr(type)),
-          LessonFlags.None,
-        );
-
-      const subInfoLower = subInfo?.toLowerCase();
-      if (subInfoLower) {
-        let libraryStrings = [subInfoLower, lessonName?.toLowerCase()].filter(
-          Boolean,
-        );
-        if (
-          libraryStrings.some(
-            (str) =>
-              str.includes('библ.') ||
-              str.includes('библиот') ||
-              str.includes('книговыдача'),
-          )
-        ) {
-          type |= LessonFlags.Library;
-        }
-      }
-
-      if (type === LessonFlags.None && lessonName) {
-        // TODO: add more combinations
-        if (lessonName.includes('исследовательская работа')) {
-          type |= LessonFlags.ResearchWork;
-        }
-      }
-
-      const lesson = new LessonDto({
-        number,
-        startAt,
-        timeRange,
-        originalTimeTitle: `${lessonNumber}. ${originalTime}`,
-        parity: parityOnWeek(trainingId),
-        lessonName,
-        type,
-        isStream: streamRefId > 0,
-        duration: academicHours * 2,
-        durationMinutes,
-        isDivision,
-        auditoryName:
-          [auditoryName_1, auditoryName_2].filter(Boolean).join('; ').trim() ||
-          null,
-        teacherName:
-          [teacherName_1, teacherName_2].filter(Boolean).join('; ').trim() ||
-          null,
-        isDistant,
-        endAt: new Date(
-          startAt.getTime() + durationMinutes * 60e3,
-        ).toISOString(),
-        subInfo,
-        isShort,
-        isLecture: lectureFlag > 0,
-      });
-      curDay.lessons.push(lesson);
-    }
+    const weeks = this.createWeek(raspz, 'group', targetId, targetName);
 
     // use exams
     if (!idSchedule) {
@@ -478,7 +297,7 @@ export class ScheduleService {
       });
       const exams: IExamDay[] = await qbExam.getRawMany();
       if (exams.length > 0) {
-        this.injectExams(weeks, exams);
+        this.injectExams(weeks, exams, 'group');
       }
     }
 
@@ -541,226 +360,7 @@ export class ScheduleService {
     }
 
     const raspz = await qb.getMany();
-
-    let parityOnWeekMap: Map<number, WeekParityType> = new Map();
-    const parityOnWeek = (trainingId: number): WeekParityType => {
-      if (parityOnWeekMap.has(trainingId)) {
-        return parityOnWeekMap.get(trainingId);
-      }
-      let total = 0;
-      let odd = 0;
-      for (const raw of raspz) {
-        if (raw.trainingId === trainingId) {
-          ++total;
-          if (raw.weekNumber % 2 === 1) {
-            ++odd;
-          }
-        }
-      }
-      let res =
-        total === odd
-          ? WeekParityType.ODD
-          : odd === 0
-            ? WeekParityType.EVEN
-            : WeekParityType.CUSTOM;
-      parityOnWeekMap.set(trainingId, res);
-      return res;
-    };
-
-    const weeks: TeacherOneWeekDto[] = [];
-    for (const raw of raspz) {
-      const {
-        date,
-        startAt,
-        lessonNumber,
-        weekNumber,
-        timeInterval,
-        lessonName,
-        auditoryName_1,
-        auditoryName_2,
-        teacherName_1,
-        teacherName_2,
-        teacherId: teacherId_1,
-        teacherId_2,
-        groupName,
-        streamRefId,
-        academicHours,
-        isShort,
-        isDistant,
-        isDivision,
-        lessonTypeShortName,
-        additionalInfo,
-        trainingId,
-        lectureFlag,
-      } = raw;
-
-      let curWeek = weeks.find((e) => e.number === weekNumber);
-      if (!curWeek) {
-        curWeek = {
-          number: weekNumber,
-          days: [],
-        };
-        weeks.push(curWeek);
-      }
-
-      let curDay = curWeek.days.find(
-        (e) => e.info.date.toString() === date.toString(),
-      );
-      if (!curDay) {
-        curDay = {
-          info: {
-            type: moment(date).day() - 1,
-            weekNumber,
-            date,
-          },
-          lessons: [],
-        };
-        curWeek.days.push(curDay);
-      }
-
-      if (streamRefId) {
-        const curLesson = curDay.lessons.find(
-          (e) => e.trainingId === streamRefId,
-        );
-        if (curLesson) {
-          curLesson.groups.push(groupName);
-          continue;
-        }
-      }
-
-      let number = lessonNumber;
-      if (number > 2 || number > 7) {
-        --number;
-      }
-
-      const durationMinutes = ((f, fixT = 1) => f * 90 + (f - fixT) * 10)(
-        Math.floor(academicHours),
-        academicHours > 1 ? (number === 2 ? -2 : number === 5 ? 0 : 1) : 1,
-      );
-
-      let timeRange = timeInterval;
-      let [startTime, endTime] = timeInterval.split('-');
-      if (academicHours > 1 && startTime && endTime) {
-        const dateTime = new Date(0);
-        const ds = startTime.split(':').map(Number);
-        dateTime.setHours(ds[0], ds[1]);
-        dateTime.setMinutes(dateTime.getMinutes() + durationMinutes);
-        endTime = `${dateTime.getHours().toString().padStart(2, '0')}:${dateTime
-          .getMinutes()
-          .toString()
-          .padStart(2, '0')}`;
-        timeRange = `${startTime}-${endTime}`;
-      }
-
-      let originalTime =
-        academicHours > 1 ? `${startTime}-...${academicHours * 2}ч` : timeRange;
-
-      if (isShort) timeRange += ' [SHORT]';
-
-      const typeRegExp = new RegExp(
-        '' +
-          '( ?(?<online>\\(онлайн\\)))?' +
-          '(,? ?(\\+ ?)?(?<types2>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
-          '(,? ?(\\+ ?)?(?<types3>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
-          '(,? ?(\\+ ?)?(?<types4>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
-          '(,? ?(\\+ ?)?(?<types5>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
-          '(,? ?\\(\\+(?<types6>teams|лекция|лек\\.?|лаб\\.?|пр\\.?з?\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.?зач\\.?|экз\\.?)\\))?' +
-          ',?\\+?' +
-          '( ?(?<subInfo>.*))?',
-        'i',
-      );
-      const typeGroups = additionalInfo.match(typeRegExp).groups || {};
-      // const isOnline = !!typeGroups.online;
-      const subInfo = typeGroups.subInfo;
-
-      let type: LessonFlags = [
-        lessonTypeShortName || '',
-        typeGroups.types2 || '',
-        typeGroups.types3 || '',
-        typeGroups.types4 || '',
-        typeGroups.types5 || '',
-        typeGroups.types6 || '',
-      ]
-        .filter(Boolean)
-        .flatMap((e) => e.split(','))
-        .map((e) => e.trim().toLowerCase())
-        .filter(Boolean)
-        .reduce(
-          (prev, type) => (prev |= getLessonTypeFromStr(type)),
-          LessonFlags.None,
-        );
-
-      const subInfoLower = subInfo?.toLowerCase();
-      if (subInfoLower) {
-        let libraryStrings = [subInfoLower, lessonName?.toLowerCase()].filter(
-          Boolean,
-        );
-        if (
-          libraryStrings.some(
-            (str) =>
-              str.includes('библ.') ||
-              str.includes('библиот') ||
-              str.includes('книговыдача'),
-          )
-        ) {
-          type |= LessonFlags.Library;
-        }
-      }
-
-      if (type === LessonFlags.None && lessonName) {
-        // TODO: add more combinations
-        if (lessonName.includes('исследовательская работа')) {
-          type |= LessonFlags.ResearchWork;
-        }
-      }
-
-      const lesson = new TeacherLessonDto({
-        trainingId,
-        number,
-        startAt,
-        timeRange,
-        originalTimeTitle: `${lessonNumber}. ${originalTime}`,
-        parity: parityOnWeek(trainingId),
-        lessonName,
-        type,
-        isStream: streamRefId > 0,
-        duration: academicHours * 2,
-        durationMinutes,
-        isDivision,
-        auditoryName:
-          [auditoryName_1, auditoryName_2].filter(Boolean).join('; ').trim() ||
-          null,
-        // teacherName:
-        //   [teacherName_1, teacherName_2].filter(Boolean).join('; ').trim() ||
-        //   null,
-        groups: [groupName],
-        isDistant,
-        endAt: new Date(
-          startAt.getTime() + durationMinutes * 60e3,
-        ).toISOString(),
-        subInfo,
-        isShort,
-        isLecture: lectureFlag > 0,
-      });
-
-      if (
-        (teacherId_1 && teacherId_1 !== teacherId) ||
-        (teacherId_2 && teacherId_2 !== teacherId)
-      ) {
-        lesson.additionalTeacher =
-          teacherId_1 && teacherId_1 !== teacherId
-            ? { name: teacherName_1, id: teacherId_1 }
-            : { name: teacherName_2, id: teacherId_2 };
-      }
-
-      // lesson['debug'] = {
-      //   IDr: raw.IDr,
-      //   trainingId,
-      //   streamRefId,
-      // };
-
-      curDay.lessons.push(lesson);
-    }
+    const weeks = this.createWeek(raspz, 'teacher', teacherId);
 
     // use exams
     if (!idSchedule) {
@@ -784,14 +384,14 @@ export class ScheduleService {
       qbExam.andWhere('pe.idprep = :id', { id: teacherId });
       const exams: IExamDay[] = await qbExam.getRawMany();
       if (exams.length > 0) {
-        this.injectExams(weeks, exams, true);
+        this.injectExams(weeks, exams, 'teacher');
+        }
       }
-    }
 
     const items = weeks;
     if (items.length === 0) {
       return null;
-    }
+      }
 
     const teacherInfo = await this.teacherRepository.findOneBy({
       id: teacherId,
@@ -812,6 +412,105 @@ export class ScheduleService {
     }
 
     return response;
+  }
+
+  async getByAudience(
+    audienceIdOrName: number | string,
+    idSchedule: number = 0,
+  ) {
+    const cacheKey = `byAudience:${idSchedule}:${String(audienceIdOrName).toLowerCase()}`;
+    if (this.allowCaching) {
+      try {
+        const cachedData = await this.redisService.redis.get(cacheKey);
+        if (cachedData) {
+          const items = JSON.parse(cachedData) as OneWeekDto[];
+          return { isCache: true, items };
+        }
+      } catch (err) {
+        this.logger.error(err);
+      }
+    }
+
+    const qb = this.raspzViewRepository
+      .createQueryBuilder('r')
+      .where('1=1')
+      .andWhere('childz = :childz', { childz: 0 })
+
+      .orderBy('datz', 'ASC')
+      .addOrderBy('nned', 'ASC')
+      .addOrderBy('npar', 'ASC');
+
+    let targetId: number = null;
+    let targetName: string = null;
+    if (!isNaN(Number(audienceIdOrName))) {
+      targetId = Number(audienceIdOrName);
+      qb.andWhere('(audi = :id OR audi2 = :id)', { id: audienceIdOrName });
+    } else {
+      targetName = audienceIdOrName as string;
+      qb.andWhere(
+        '(LOWER(nameaudi) = LOWER(:name) OR LOWER(nameaudi2) = LOWER(:name))',
+        { name: audienceIdOrName },
+      );
+    }
+
+    if (idSchedule > 0) {
+      qb.andWhere('idraspz = :idSchedule', { idSchedule });
+    } else {
+      qb.innerJoin('raspz_nastr', 'n', 'n.idraspz = r.idraspz');
+      qb.andWhere('n.fl_pub > 0');
+    }
+
+    const raspz = await qb.getMany();
+    const weeks = this.createWeek(raspz, 'audience', targetId, targetName);
+
+    // use exams
+    if (!idSchedule) {
+      const qbExam = this.examenRepository
+        .createQueryBuilder('e')
+        .where('1=1')
+        .andWhere('isnull(e.noras, 0) <= 0')
+        .andWhere('e.data IS NOT NULL')
+
+        .select('e.data', 'date')
+        .addSelect('p.namepredmet', 'lessonName')
+        .addSelect('a.nameaudi', 'auditoryName')
+        .addSelect('pr.fio1', 'teacherName')
+        .addSelect('e.note', 'note')
+
+        .leftJoin('audi', 'a', 'a.idaudi = e.idaudi')
+        .leftJoin('gruppa', 'g', 'e.idgroup = g.idgroup')
+        .leftJoin('predmet', 'p', 'e.idpredmet = p.idpredmet')
+        .leftJoin('prep_examen', 'pe', 'pe.idexam = e.idexam')
+        .leftJoin('prep', 'pr', 'pe.idprep = pr.idprep');
+
+      if (!isNaN(Number(audienceIdOrName))) {
+        qbExam.andWhere('e.idaudi = :id', { id: audienceIdOrName });
+      } else {
+        qbExam.andWhere('LOWER(a.nameaudi) = LOWER(:name)', {
+          name: audienceIdOrName,
+      });
+      }
+      const exams: IExamDay[] = await qbExam.getRawMany();
+      if (exams.length > 0) {
+        this.injectExams(weeks, exams, 'audience');
+      }
+    }
+
+    const items = weeks;
+    if (items.length === 0) {
+      return null;
+    }
+
+    if (this.allowCaching) {
+      await this.redisService.redis.set(
+        cacheKey,
+        JSON.stringify(items),
+        'EX',
+        60 * 5,
+      );
+    }
+
+    return { isCache: false, items };
   }
 
   async getTeachersBySchedule(idSchedule: number) {
@@ -972,10 +671,294 @@ export class ScheduleService {
     return { isCache: false, items, count: items.length };
   }
 
+  private createWeek<TW = OneWeekDto>(
+    raspz: ScheduleView[],
+    type: 'group',
+    targetId?: number,
+    targetName?: string,
+  ): TW[];
+  private createWeek<TW = TeacherOneWeekDto>(
+    raspz: ScheduleView[],
+    type: 'teacher',
+    targetId?: number,
+    targetName?: string,
+  ): TW[];
+  private createWeek<TW = AudienceOneWeekDto>(
+    raspz: ScheduleView[],
+    type: 'audience',
+    targetId?: number,
+    targetName?: string,
+  ): TW[];
+  private createWeek<
+    TW extends OneWeekDto | TeacherOneWeekDto | AudienceOneWeekDto,
+  >(
+    raspz: ScheduleView[],
+    rType: 'group' | 'teacher' | 'audience',
+    targetId?: number,
+    targetName?: string,
+  ) {
+    let parityOnWeekMap: Map<number, WeekParityType> = new Map();
+    const parityOnWeek = (trainingId: number): WeekParityType => {
+      if (parityOnWeekMap.has(trainingId)) {
+        return parityOnWeekMap.get(trainingId);
+      }
+      let total = 0;
+      let odd = 0;
+      for (const raw of raspz) {
+        if (raw.trainingId === trainingId) {
+          ++total;
+          if (raw.weekNumber % 2 === 1) {
+            ++odd;
+          }
+        }
+      }
+      let res =
+        total === odd
+          ? WeekParityType.ODD
+          : odd === 0
+            ? WeekParityType.EVEN
+            : WeekParityType.CUSTOM;
+      parityOnWeekMap.set(trainingId, res);
+      return res;
+    };
+
+    const weeks: TW[] = [];
+    for (const raw of raspz) {
+      const {
+        date,
+        startAt,
+        lessonNumber,
+        weekNumber,
+        timeInterval,
+        lessonName,
+        auditoryName_1,
+        auditoryName_2,
+        auditoryId: auditoryId_1,
+        auditoryId_2,
+        teacherName_1,
+        teacherName_2,
+        teacherId: teacherId_1,
+        teacherId_2,
+        groupName,
+        streamRefId,
+        academicHours,
+        isShort,
+        isDistant,
+        isDivision,
+        lessonTypeShortName,
+        additionalInfo,
+        trainingId,
+        lectureFlag,
+      } = raw;
+
+      let curWeek = weeks.find((e) => e.number === weekNumber);
+      if (!curWeek) {
+        curWeek = {
+          number: weekNumber,
+          days: [],
+        } as TW;
+        weeks.push(curWeek);
+      }
+
+      let curDay = curWeek.days.find(
+        (e) => e.info.date.toString() === date.toString(),
+      );
+      if (!curDay) {
+        curDay = {
+          info: {
+            type: moment(date).day() - 1,
+            weekNumber,
+            date,
+          },
+          lessons: [],
+        };
+        (curWeek.days as OneDayDto[]).push(curDay);
+      }
+
+      if (streamRefId) {
+        const curLesson = curDay.lessons.find(
+          (e) => e.trainingId === streamRefId,
+        );
+        if (curLesson) {
+          if (rType !== 'group') {
+            (curLesson as TeacherLessonDto).groups.push(groupName);
+          }
+          continue;
+        }
+      }
+
+      let number = lessonNumber;
+      if (number > 2 || number > 7) {
+        --number;
+      }
+
+      const durationMinutes = ((f, fixT = 1) => f * 90 + (f - fixT) * 10)(
+        Math.floor(academicHours),
+        academicHours > 1 ? (number === 2 ? -2 : number === 5 ? 0 : 1) : 1,
+      );
+
+      let timeRange = timeInterval;
+      let [startTime, endTime] = timeInterval.split('-');
+      if (academicHours > 1 && startTime && endTime) {
+        const dateTime = new Date(0);
+        const ds = startTime.split(':').map(Number);
+        dateTime.setHours(ds[0], ds[1]);
+        dateTime.setMinutes(dateTime.getMinutes() + durationMinutes);
+        endTime = `${dateTime.getHours().toString().padStart(2, '0')}:${dateTime
+          .getMinutes()
+          .toString()
+          .padStart(2, '0')}`;
+        timeRange = `${startTime}-${endTime}`;
+      }
+
+      let originalTime =
+        academicHours > 1 ? `${startTime}-...${academicHours * 2}ч` : timeRange;
+
+      if (isShort) timeRange += ' [SHORT]';
+
+      const typeRegExp = new RegExp(
+        '' +
+          '( ?(?<online>\\(онлайн\\)))?' +
+          '(,? ?(\\+ ?)?(?<types2>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
+          '(,? ?(\\+ ?)?(?<types3>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
+          '(,? ?(\\+ ?)?(?<types4>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
+          '(,? ?(\\+ ?)?(?<types5>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
+          '(,? ?\\(\\+(?<types6>teams|лекция|лек\\.?|лаб\\.?|пр\\.?з?\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.?зач\\.?|экз\\.?)\\))?' +
+          ',?\\+?' +
+          '( ?(?<subInfo>.*))?',
+        'i',
+      );
+      const typeGroups = additionalInfo.match(typeRegExp).groups || {};
+      // const isOnline = !!typeGroups.online;
+      const subInfo = typeGroups.subInfo;
+
+      let type: LessonFlags = [
+        lessonTypeShortName || '',
+        typeGroups.types2 || '',
+        typeGroups.types3 || '',
+        typeGroups.types4 || '',
+        typeGroups.types5 || '',
+        typeGroups.types6 || '',
+      ]
+        .filter(Boolean)
+        .flatMap((e) => e.split(','))
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean)
+        .reduce(
+          (prev, type) => (prev |= getLessonTypeFromStr(type)),
+          LessonFlags.None,
+        );
+
+      const subInfoLower = subInfo?.toLowerCase();
+      if (subInfoLower) {
+        let libraryStrings = [subInfoLower, lessonName?.toLowerCase()].filter(
+          Boolean,
+        );
+        if (
+          libraryStrings.some(
+            (str) =>
+              str.includes('библ.') ||
+              str.includes('библиот') ||
+              str.includes('книговыдача'),
+          )
+        ) {
+          type |= LessonFlags.Library;
+        }
+      }
+
+      if (type === LessonFlags.None && lessonName) {
+        // TODO: add more combinations
+        if (lessonName.includes('исследовательская работа')) {
+          type |= LessonFlags.ResearchWork;
+        }
+      }
+
+      const lessonDto =
+        rType === 'group'
+          ? LessonDto
+          : rType === 'teacher'
+            ? TeacherLessonDto
+            : AudienceLessonDto;
+
+      const lesson = new lessonDto({
+        trainingId,
+        number,
+        startAt,
+        timeRange,
+        originalTimeTitle: `${lessonNumber}. ${originalTime}`,
+        parity: parityOnWeek(trainingId),
+        lessonName,
+        type,
+        isStream: streamRefId > 0,
+        duration: academicHours * 2,
+        durationMinutes,
+        isDivision,
+        teacherName: teacherName_1 || undefined,
+        teacherId: teacherId_1 || undefined,
+        additionalTeacherName: teacherName_2 || undefined,
+        additionalTeacherId: teacherId_2 || undefined,
+        auditoryName: auditoryName_1 || undefined,
+        additionalAuditoryName: auditoryName_2 || undefined,
+        // auditoryName:
+        //   [auditoryName_1, auditoryName_2].filter(Boolean).join('; ').trim() ||
+        //   null,
+        isDistant,
+        endAt: new Date(
+          startAt.getTime() + durationMinutes * 60e3,
+        ).toISOString(),
+        subInfo,
+        isShort,
+        isLecture: lectureFlag > 0,
+      });
+
+      if (lesson instanceof TeacherLessonDto) {
+        lesson.groups = [groupName];
+        lesson.teacherName = teacherName_1;
+        lesson.teacherId = teacherId_1;
+
+        // if (targetName || targetId) {
+        //   const cond2 = targetName
+        //     ? teacherName_2 &&
+        //       teacherName_2.toLowerCase() === targetName.toLowerCase()
+        //     : teacherId_2 && teacherId_2 === targetId;
+        //   if (cond2) {
+        //     lesson.teacherName = teacherName_2;
+        //     lesson.teacherId = teacherId_2;
+        //     lesson.additionalTeacherName = teacherName_1;
+        //     lesson.additionalTeacherId = teacherId_1;
+        //   }
+        // }
+      } else if (lesson instanceof AudienceLessonDto) {
+        lesson.groups = [groupName];
+
+        // if (targetName || targetId) {
+        //   const cond2 = targetName
+        //     ? auditoryName_2 &&
+        //       auditoryName_2.toLowerCase() === targetName.toLowerCase()
+        //     : auditoryId_1 && auditoryId_1 === targetId;
+        //   if (cond2) {
+        //     lesson.teacherName = auditoryName_2;
+        //     lesson.additionalTeacherName = auditoryName_1;
+        //   }
+        // }
+      }
+      // LessonDto
+      else {
+        lesson.teacherName =
+          [teacherName_1, teacherName_2].filter(Boolean).join('; ').trim() ||
+          null;
+      }
+
+      (curDay.lessons as (typeof lesson)[]).push(lesson);
+    }
+
+    return weeks;
+  }
+
   private injectExams(
     schedule: (OneWeekDto | TeacherOneWeekDto)[],
     exams: IExamDay[],
-    forTeacher = false,
+    rType: 'group' | 'teacher' | 'audience' = 'group',
   ) {
     for (const exam of exams) {
       let targetDay: OneDayDto = null;
@@ -1017,9 +1000,10 @@ export class ScheduleService {
         subInfo: exam.note,
       }) as LessonDto & Partial<TeacherLessonDto>;
 
-      if (forTeacher) {
+      if (rType !== 'group') {
         lessonFormat.groups = [exam.groupName];
-      } else {
+      }
+      if (rType !== 'teacher') {
         lessonFormat.teacherName = exam.teacherName;
       }
 

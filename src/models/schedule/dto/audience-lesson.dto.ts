@@ -1,16 +1,16 @@
 import { plainToClass } from 'class-transformer';
 import { LessonDto } from './lesson.dto';
 
-export class TeacherLessonDto extends LessonDto {
+export class AudienceLessonDto extends LessonDto {
   /**
    * Названия групп
    */
   groups: string[];
 
-  constructor(input?: Partial<TeacherLessonDto>) {
+  constructor(input?: Partial<AudienceLessonDto>) {
     super();
     if (input) {
-      Object.assign(this, plainToClass(TeacherLessonDto, input));
+      Object.assign(this, plainToClass(AudienceLessonDto, input));
     }
   }
 }

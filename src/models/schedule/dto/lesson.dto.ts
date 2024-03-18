@@ -75,11 +75,23 @@ export class LessonDto {
    */
   auditoryName?: string;
   /**
+   * Буква корпуса и номер дополнительной аудитори
+   */
+  additionalAuditoryName?: string;
+  /**
    * ФИО преподователя
    *
    * @example 'Иванов ИИ'
    */
   teacherName?: string;
+  teacherId?: number;
+  /**
+   * ФИО второго преподователя
+   *
+   * @example 'Иванов ИИ'
+   */
+  additionalTeacherName?: string;
+  additionalTeacherId?: number;
   /**
    * Дополнительная информация
    */
