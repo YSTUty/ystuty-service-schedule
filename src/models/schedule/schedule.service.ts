@@ -10,7 +10,7 @@ import {
   getWeekOffsetByYear,
 } from '@my-common';
 
-import { Exam, ScheduleView, Teacher } from './entity';
+import { Auditory, Exam, ScheduleView, Teacher } from './entity';
 import { InstituteGroupsDto, LessonDto, OneDayDto, OneWeekDto } from './dto';
 import { RedisService } from '../redis/redis.service';
 
@@ -35,6 +35,8 @@ export class ScheduleService {
     private readonly examenRepository: Repository<Exam>,
     @InjectRepository(Teacher)
     private readonly teacherRepository: Repository<Teacher>,
+    @InjectRepository(Auditory)
+    private readonly audienceRepository: Repository<Auditory>,
 
     private readonly redisService: RedisService,
   ) {}
@@ -372,13 +374,13 @@ export class ScheduleService {
       const exams: IExamDay[] = await qbExam.getRawMany();
       if (exams.length > 0) {
         this.injectExams(weeks, exams, 'teacher');
-        }
       }
+    }
 
     const items = weeks;
     if (items.length === 0) {
       return null;
-      }
+    }
 
     const teacherInfo = await this.teacherRepository.findOneBy({
       id: teacherId,
@@ -472,7 +474,7 @@ export class ScheduleService {
       } else {
         qbExam.andWhere('LOWER(a.nameaudi) = LOWER(:name)', {
           name: audienceIdOrName,
-      });
+        });
       }
       const exams: IExamDay[] = await qbExam.getRawMany();
       if (exams.length > 0) {
@@ -655,6 +657,12 @@ export class ScheduleService {
     return { isCache: false, items, count: items.length };
   }
 
+  async getAudiences() {
+    return await this.audienceRepository.find({
+      // take: 10,
+    });
+  }
+
   private createWeek(
     raspz: ScheduleView[],
     rType: 'group' | 'teacher' | 'audience',
@@ -748,12 +756,12 @@ export class ScheduleService {
               e.teacherId === teacherId_1 &&
               e.auditoryName === auditoryName_1),
         );
-        if (curLesson) {
-          if (rType !== 'group') {
-            curLesson.groups.push(groupName);
-          }
-          continue;
+      if (curLesson) {
+        if (rType !== 'group') {
+          curLesson.groups.push(groupName);
         }
+        continue;
+      }
 
       let number = lessonNumber;
       if (number > 2 || number > 7) {
@@ -762,6 +770,7 @@ export class ScheduleService {
 
       const durationMinutes = ((f, fixT = 1) => f * 90 + (f - fixT) * 10)(
         Math.floor(academicHours),
+        // ! need fix 19:00 при больше чем 3 академ. часах
         academicHours > 1 ? (number === 2 ? -2 : number === 5 ? 0 : 1) : 1,
       );
 
@@ -836,9 +845,9 @@ export class ScheduleService {
 
       if (type === LessonFlags.None) {
         if (lessonName?.length > 0) {
-        // TODO: add more combinations
-        if (lessonName.includes('исследовательская работа')) {
-          type |= LessonFlags.ResearchWork;
+          // TODO: add more combinations
+          if (lessonName.includes('исследовательская работа')) {
+            type |= LessonFlags.ResearchWork;
           }
         } else if (subInfo?.length > 0) {
           // TODO: add more combinations

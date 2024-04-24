@@ -7,10 +7,12 @@ import {
   Param,
   ParseIntPipe,
   Query,
+  UseGuards,
   UseInterceptors,
   Version,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiExtraModels,
   ApiOperation,
   ApiParam,
@@ -20,6 +22,7 @@ import {
   getSchemaPath,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { OAuth2AccessTokenGuard } from '@my-common';
 
 import { ScheduleService } from './schedule.service';
 import { GroupDetailDto, InstituteGroupsDto, OneWeekDto } from './dto';
@@ -315,5 +318,20 @@ export class ScheduleController {
       );
     }
     return data;
+  }
+
+  @Get('all_audiences')
+  @Version('1')
+  @ApiOperation({ summary: 'Вернуть список всех аудиторий' })
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 1, ttl: 2e3 } })
+  @UseGuards(OAuth2AccessTokenGuard)
+  async getAllAudiences() {
+    const result = await this.scheduleService.getAudiences();
+
+    if (!result) {
+      throw new NotFoundException('audience not found');
+    }
+    return result;
   }
 }
