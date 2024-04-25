@@ -7,6 +7,7 @@ export * from './department.entity';
 export * from './exam.entity';
 export * from './faculty-institute.entity';
 export * from './group.entity';
+export * from './rasp-gr-week-view.entity';
 export * from './schedule-semester.entity';
 export * from './semester-name.entity';
 export * from './teacher.entity';

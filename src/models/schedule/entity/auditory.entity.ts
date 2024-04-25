@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { Exclude, Expose, plainToClass } from 'class-transformer';
 
+import { trimTransformer } from '@my-common';
 import { Exam, Department } from '.';
 
 /**
@@ -73,11 +74,15 @@ export class Auditory {
   public date1: Date;
 
   @Expose()
-  @Column({ name: 'primech', nullable: true })
+  @Column({ name: 'primech', nullable: true, transformer: trimTransformer })
   public note: string;
 
   @Expose()
-  @Column({ name: 'abrkaf', nullable: true })
+  @Column({
+    name: 'abrkaf',
+    nullable: true,
+    transformer: trimTransformer,
+  })
   public departmentShortName: string;
 
   @Expose()

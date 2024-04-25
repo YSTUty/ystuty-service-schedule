@@ -3,14 +3,20 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as moment from 'moment';
 
-import { LessonFlags, WeekParityType } from '@my-interfaces';
+import { LessonFlags, WeekNumberType, WeekParityType } from '@my-interfaces';
 import {
   getLessonTypeFromStr,
   getWeekNumber,
   getWeekOffsetByYear,
 } from '@my-common';
 
-import { Auditory, Exam, ScheduleView, Teacher } from './entity';
+import {
+  Auditory,
+  Exam,
+  RaspGrWeekView,
+  ScheduleView,
+  Teacher,
+} from './entity';
 import { InstituteGroupsDto, LessonDto, OneDayDto, OneWeekDto } from './dto';
 import { RedisService } from '../redis/redis.service';
 
@@ -31,6 +37,8 @@ export class ScheduleService {
   constructor(
     @InjectRepository(ScheduleView)
     private readonly raspzViewRepository: Repository<ScheduleView>,
+    @InjectRepository(RaspGrWeekView)
+    private readonly raspGrWeekViewRepository: Repository<RaspGrWeekView>,
     @InjectRepository(Exam)
     private readonly examenRepository: Repository<Exam>,
     @InjectRepository(Teacher)
@@ -291,6 +299,108 @@ export class ScheduleService {
     }
 
     const items = weeks;
+    if (items.length === 0) {
+      return null;
+    }
+
+    if (this.allowCaching) {
+      await this.redisService.redis.set(
+        cacheKey,
+        JSON.stringify(items),
+        'EX',
+        60 * 5,
+      );
+    }
+
+    return { isCache: false, items };
+  }
+
+  async getByGroupAsWeek(
+    groupIdOrName: number | string,
+    idSchedule: number = 0,
+  ) {
+    const cacheKey = `byGroupAsWeek:${idSchedule}:${String(groupIdOrName).toLowerCase()}`;
+    if (this.allowCaching) {
+      try {
+        const cachedData = await this.redisService.redis.get(cacheKey);
+        if (cachedData) {
+          const items = JSON.parse(cachedData) as OneWeekDto[];
+          return { isCache: true, items };
+        }
+      } catch (err) {
+        this.logger.error(err);
+      }
+    }
+
+    let groupId = Number(groupIdOrName);
+    let idraspz = idSchedule;
+
+    if (isNaN(groupId) || !idraspz) {
+      const qb = this.raspzViewRepository.createQueryBuilder('r').where('1=1');
+
+      if (!isNaN(Number(groupIdOrName))) {
+        qb.andWhere('idgr = :id', { id: groupIdOrName });
+      } else {
+        qb.andWhere('LOWER(namegr) = LOWER(:name)', {
+          name: groupIdOrName,
+        });
+      }
+
+      if (idSchedule > 0) {
+        qb.andWhere('idraspz = :idSchedule', { idSchedule });
+      } else {
+        qb.innerJoin('raspz_nastr', 'n', 'n.idraspz = r.idraspz');
+        qb.andWhere('n.fl_pub > 0');
+      }
+
+      const raspz = await qb.getOne();
+      if (!raspz) {
+        return null;
+      }
+      groupId = raspz.groupId;
+      idraspz = raspz.IDraspz;
+    }
+
+    if (!groupId || !idraspz) {
+      return null;
+    }
+
+    const items = [];
+
+    // 1-7
+    for (
+      let ndow = WeekNumberType.Monday;
+      ndow < WeekNumberType.Sunday;
+      ++ndow
+    ) {
+      let isLecture = true;
+      do {
+        const qb = this.raspGrWeekViewRepository
+          .createQueryBuilder('r')
+          .setParameters({
+            idraspz: idraspz,
+            idgr: groupId,
+            ndow: ndow + 1,
+            lek: isLecture ? 1 : 0,
+          })
+          .orderBy('r.npar')
+          .addOrderBy('r.idz');
+
+        let week = await qb.disableEscaping().getMany();
+
+        items.push({
+          weekType: ndow,
+          week,
+          isLecture,
+        });
+
+        if (!isLecture) {
+          break;
+        }
+        isLecture = false;
+      } while (true);
+    }
+
     if (items.length === 0) {
       return null;
     }

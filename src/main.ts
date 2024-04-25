@@ -69,6 +69,7 @@ async function bootstrap() {
           clientCredentials: {
             scopes: {
               'schedule:read': 'Read Schedule',
+              'schedule:advanced:read': 'Read Advanced Schedule',
             },
             tokenUrl: '/access_token',
             refreshUrl: '/access_token',

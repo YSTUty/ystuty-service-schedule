@@ -22,9 +22,11 @@ import {
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { OAuth2AccessTokenGuard, OAuth2RequiredScope } from '@my-common';
+import { WeekNumberType } from '@my-interfaces';
 
 import { ScheduleService } from './schedule.service';
 import { GroupDetailDto, InstituteGroupsDto, OneWeekDto } from './dto';
+import { RaspGrWeekView } from './entity';
 
 @ApiTags('schedule')
 @Controller('/schedule')
@@ -152,6 +154,87 @@ export class ScheduleController {
     idSchedule: number,
   ) {
     const result = await this.scheduleService.getByGroup(
+      groupIdOrName,
+      idSchedule,
+    );
+
+    if (!result) {
+      throw new NotFoundException(
+        `group not found by this name or id${idSchedule ? ' or idschedule' : ''}`,
+      );
+    }
+    return result;
+  }
+
+  @Get('group_week/:groupIdOrName')
+  @Version('1')
+  @ApiOperation({
+    summary: 'Вернуть расписание для выбранной группы с интервалами по неделям',
+  })
+  @ApiParam({
+    name: 'groupIdOrName',
+    description: 'Название или ID группы',
+    allowEmptyValue: false,
+    examples: {
+      eis46: {
+        summary: 'Группа ЦИС-37',
+        value: 'ЦИС-37',
+      },
+      sar14: {
+        summary: 'Группа САР-24',
+        value: 'САР-24',
+      },
+      // id4627: {
+      //   summary: 'Группа ТСД-11 по id (4627)',
+      //   value: '4627',
+      // },
+    },
+  })
+  @ApiQuery({
+    name: 'idschedule',
+    description: '',
+    type: Number,
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    schema: {
+      type: 'object',
+      properties: {
+        isCache: { type: 'boolean' },
+        items: {
+          type: 'array',
+          items: {
+            properties: {
+              weekType: {
+                type: 'enum',
+                enum: Object.keys(WeekNumberType).filter(
+                  (e) => !isNaN(Number(e)),
+                ),
+              },
+              week: {
+                type: 'array',
+                items: { $ref: getSchemaPath(RaspGrWeekView) },
+              },
+              isLecture: {
+                type: 'boolean',
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiExtraModels(RaspGrWeekView)
+  @Throttle({ default: { limit: 5, ttl: 10e3 } })
+  @UseGuards(OAuth2AccessTokenGuard)
+  @OAuth2RequiredScope('schedule', ['advanced'], ['read'])
+  async getByGroupAsWeek(
+    @Param('groupIdOrName') groupIdOrName: string,
+    @Query('idschedule', new DefaultValuePipe(0), ParseIntPipe)
+    idSchedule: number,
+  ) {
+    const result = await this.scheduleService.getByGroupAsWeek(
       groupIdOrName,
       idSchedule,
     );
