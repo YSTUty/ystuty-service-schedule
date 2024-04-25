@@ -6,7 +6,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { IS_PUBLIC_KEY } from '@my-common';
+
+import { IS_PUBLIC_KEY, OAUTH2_REQUIRED_SCOPES } from '@my-common';
+import { IOAuth2Payload } from '@my-interfaces';
 
 @Injectable()
 export class OAuth2AccessTokenGuard extends AuthGuard('oauth2-access-token') {
@@ -16,16 +18,16 @@ export class OAuth2AccessTokenGuard extends AuthGuard('oauth2-access-token') {
 
   async canActivate(context: ExecutionContext) {
     let isPublic = this.reflector.get(IS_PUBLIC_KEY, context.getHandler());
-    // const requiredScopesByHandler =
-    //   this.reflector.get<string[]>(
-    //     OAUTH2_REQUIRED_SCOPES,
-    //     context.getHandler(),
-    //   ) || [];
-    // const requiredScopesByClass =
-    //   this.reflector.get<string[]>(
-    //     OAUTH2_REQUIRED_SCOPES,
-    //     context.getClass(),
-    //   ) || [];
+    const requiredScopesByHandler =
+      this.reflector.get<string[]>(
+        OAUTH2_REQUIRED_SCOPES,
+        context.getHandler(),
+      ) || [];
+    const requiredScopesByClass =
+      this.reflector.get<string[]>(
+        OAUTH2_REQUIRED_SCOPES,
+        context.getClass(),
+      ) || [];
 
     let isAllowed = true;
     try {
@@ -40,14 +42,14 @@ export class OAuth2AccessTokenGuard extends AuthGuard('oauth2-access-token') {
       return isAllowed;
     }
 
-    // if (isAllowed) {
-    //   const { accessToken } = context.switchToHttp().getRequest()
-    //     .oAuth as IOAuth2Payload;
+    if (isAllowed) {
+      const { accessToken } = context.switchToHttp().getRequest()
+        .oAuth as IOAuth2Payload;
 
-    //   isAllowed = [
-    //     ...new Set([...requiredScopesByClass, ...requiredScopesByHandler]),
-    //   ].every((scope) => accessToken.scopes.includes(scope));
-    // }
+      isAllowed = [
+        ...new Set([...requiredScopesByClass, ...requiredScopesByHandler]),
+      ].every((scope) => accessToken.scopes.includes(scope));
+    }
 
     return isAllowed;
   }

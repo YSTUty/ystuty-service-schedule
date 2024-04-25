@@ -12,7 +12,6 @@ import {
   Version,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
   ApiExtraModels,
   ApiOperation,
   ApiParam,
@@ -22,7 +21,7 @@ import {
   getSchemaPath,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { OAuth2AccessTokenGuard } from '@my-common';
+import { OAuth2AccessTokenGuard, OAuth2RequiredScope } from '@my-common';
 
 import { ScheduleService } from './schedule.service';
 import { GroupDetailDto, InstituteGroupsDto, OneWeekDto } from './dto';
@@ -323,9 +322,9 @@ export class ScheduleController {
   @Get('all_audiences')
   @Version('1')
   @ApiOperation({ summary: 'Вернуть список всех аудиторий' })
-  @ApiBearerAuth()
   @Throttle({ default: { limit: 1, ttl: 2e3 } })
   @UseGuards(OAuth2AccessTokenGuard)
+  @OAuth2RequiredScope('schedule', ['read'])
   async getAllAudiences() {
     const result = await this.scheduleService.getAudiences();
 
