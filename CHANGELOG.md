@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.1](https://github.com/YSTUty/ystuty-service-schedule/compare/v0.1.0...v0.1.1) (2024-04-25)
+
+
+### 📈 Chore
+
+* **schedule:** auto combine lessons to stream ([bedcb9f](https://github.com/YSTUty/ystuty-service-schedule/commit/bedcb9fffa6319aa8f9af645c906843797b25260))
+* **schedule:** fixs lesson name and groups ([1e761e6](https://github.com/YSTUty/ystuty-service-schedule/commit/1e761e6dda34b2ba39a4f4003e14954a1190a4c5))
+* **schedule:** force try auto combine lessons to stream ([926bc16](https://github.com/YSTUty/ystuty-service-schedule/commit/926bc1682d6a8f37b1f851f0c541b15d0514083e))
+
+
+### 🚀 Features
+
+* add `raspGrWeekView` repository ([9462a10](https://github.com/YSTUty/ystuty-service-schedule/commit/9462a10b9df4ed43759b807a4d0473fb0ff74663))
+* **common:** add `OAuth2RequiredScope` decorator ([0983e81](https://github.com/YSTUty/ystuty-service-schedule/commit/0983e8188003fdf83c1654ca153f7365d8ab6448))
+* **readme:** add `badge`s with counter ([b23bdfc](https://github.com/YSTUty/ystuty-service-schedule/commit/b23bdfc6dc605421f9267695860ab31277e36b1f))
+* **schedule:** add method for get audiences list ([ca8cc0b](https://github.com/YSTUty/ystuty-service-schedule/commit/ca8cc0b0e7a351c465b123107a434b9194796ec1))
+
 ## [0.1.0](https://github.com/YSTUty/ystuty-service-schedule/compare/v0.0.1...v0.1.0) (2024-03-18)
 
 
