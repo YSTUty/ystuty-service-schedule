@@ -7,16 +7,23 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
-import { IS_PUBLIC_KEY, OAUTH2_REQUIRED_SCOPES } from '@my-common';
+import {
+  IS_PUBLIC_KEY,
+  NEED_AUTH_KEY,
+  OAUTH2_REQUIRED_SCOPES,
+} from '@my-common';
 import { IOAuth2Payload } from '@my-interfaces';
 
 @Injectable()
 export class OAuth2AccessTokenGuard extends AuthGuard('oauth2-access-token') {
+  public static allowNoAuth = false;
+
   constructor(private readonly reflector: Reflector) {
     super({ property: 'oAuth' });
   }
 
   async canActivate(context: ExecutionContext) {
+    let needAuth = this.reflector.get(NEED_AUTH_KEY, context.getHandler());
     let isPublic = this.reflector.get(IS_PUBLIC_KEY, context.getHandler());
     const requiredScopesByHandler =
       this.reflector.get<string[]>(
@@ -33,7 +40,11 @@ export class OAuth2AccessTokenGuard extends AuthGuard('oauth2-access-token') {
     try {
       isAllowed = (await super.canActivate(context)) as boolean;
     } catch (err) {
-      if (!isPublic || !(err instanceof NotFoundException)) {
+      if (
+        needAuth ||
+        !(isPublic || OAuth2AccessTokenGuard.allowNoAuth) ||
+        !(err instanceof NotFoundException)
+      ) {
         if (err instanceof NotFoundException) {
           throw new ForbiddenException('Wrong access_token');
         }

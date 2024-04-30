@@ -7,7 +7,6 @@ import {
   Param,
   ParseIntPipe,
   Query,
-  UseGuards,
   UseInterceptors,
   Version,
 } from '@nestjs/common';
@@ -21,7 +20,7 @@ import {
   getSchemaPath,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { OAuth2AccessTokenGuard, OAuth2RequiredScope } from '@my-common';
+import { NeedAuth, OAuth2RequiredScope } from '@my-common';
 import { WeekNumberType } from '@my-interfaces';
 
 import { ScheduleService } from './schedule.service';
@@ -227,7 +226,7 @@ export class ScheduleController {
   })
   @ApiExtraModels(RaspGrWeekView)
   @Throttle({ default: { limit: 5, ttl: 10e3 } })
-  @UseGuards(OAuth2AccessTokenGuard)
+  @NeedAuth()
   @OAuth2RequiredScope('schedule', ['advanced'], ['read'])
   async getByGroupAsWeek(
     @Param('groupIdOrName') groupIdOrName: string,
@@ -406,7 +405,7 @@ export class ScheduleController {
   @Version('1')
   @ApiOperation({ summary: 'Вернуть список всех аудиторий' })
   @Throttle({ default: { limit: 1, ttl: 2e3 } })
-  @UseGuards(OAuth2AccessTokenGuard)
+  @NeedAuth()
   @OAuth2RequiredScope('schedule', ['read'])
   async getAllAudiences() {
     const result = await this.scheduleService.getAudiences();

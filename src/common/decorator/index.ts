@@ -1,4 +1,5 @@
 export * from './api-all-security.decorator';
+export * from './need-auth.decorator';
 export * from './oauth2-scope.decorator';
 export * from './only-dev.decorator';
 export * from './public.decorator';

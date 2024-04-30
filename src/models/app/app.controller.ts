@@ -1,8 +1,13 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { ApiBearerAuth, ApiOAuth2 } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
-import { OAuth2AccessTokenGuard, ReqAuth, ReqAuthType } from '@my-common';
+import {
+  NeedAuth,
+  OAuth2RequiredScope,
+  ReqAuth,
+  ReqAuthType,
+} from '@my-common';
 import { OAuth2PayloadType } from '@my-interfaces';
 
 import {
@@ -22,9 +27,10 @@ export class AppController {
 
   @Get('getMyGroup')
   @Throttle({ default: { limit: 1, ttl: 2e3 } })
-  @UseGuards(OAuth2AccessTokenGuard)
   @ApiBearerAuth() /* (http, Bearer) */
   @ApiOAuth2([]) /* (OAuth2, clientCredentials) */
+  @NeedAuth()
+  @OAuth2RequiredScope('schedule', ['user'])
   async getMyGroup(
     @ReqAuth(ReqAuthType.OAuth) oauthPayload: UserPayloadDto | ClientPayloadDto,
   ) {

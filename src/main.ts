@@ -70,6 +70,7 @@ async function bootstrap() {
             scopes: {
               'schedule:read': 'Read Schedule',
               'schedule:advanced:read': 'Read Advanced Schedule',
+              'schedule:nolimit': 'No rate limits',
             },
             tokenUrl: '/access_token',
             refreshUrl: '/access_token',
