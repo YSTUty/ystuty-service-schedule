@@ -1,7 +1,8 @@
-import { Exclude, Expose, plainToClass } from 'class-transformer';
+import { TransformToClass } from '@my-common';
+import { Exclude, Expose } from 'class-transformer';
 
 @Exclude()
-export class OAuthAccessTokenResponseDto {
+export class OAuthAccessTokenResponseDto extends TransformToClass<OAuthAccessTokenResponseDto> {
   @Expose()
   public id: number;
 
@@ -40,10 +41,4 @@ export class OAuthAccessTokenResponseDto {
 
   @Expose()
   public updatedAt: Date;
-
-  constructor(input?: Partial<OAuthAccessTokenResponseDto>) {
-    if (input) {
-      Object.assign(this, plainToClass(OAuthAccessTokenResponseDto, input));
-    }
-  }
 }
