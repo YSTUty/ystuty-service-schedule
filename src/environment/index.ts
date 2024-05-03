@@ -46,6 +46,8 @@ export const SWAGGER_ACCESS_USERNAME: string =
   process.env.SWAGGER_ACCESS_USERNAME || '';
 export const SWAGGER_ACCESS_PASSWORD: string =
   process.env.SWAGGER_ACCESS_PASSWORD || '';
+export const SWAGGER_ACCESS_PASSWORD_STATS: string =
+  process.env.SWAGGER_ACCESS_PASSWORD_STATS || '';
 
 // * TypeORM
 export const mssqlDefaults: DataSourceOptions = {
