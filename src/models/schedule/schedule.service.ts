@@ -14,6 +14,7 @@ import {
   Auditory,
   Exam,
   RaspGrWeekView,
+  ScheduleSemester,
   ScheduleView,
   Teacher,
 } from './entity';
@@ -45,6 +46,8 @@ export class ScheduleService {
     private readonly teacherRepository: Repository<Teacher>,
     @InjectRepository(Auditory)
     private readonly audienceRepository: Repository<Auditory>,
+    @InjectRepository(ScheduleSemester)
+    private readonly scheduleSemesterRepository: Repository<ScheduleSemester>,
 
     private readonly redisService: RedisService,
   ) {}
@@ -769,6 +772,13 @@ export class ScheduleService {
 
   async getAudiences() {
     return await this.audienceRepository.find({
+      // take: 10,
+    });
+  }
+
+  async getScheduleSemesters() {
+    return await this.scheduleSemesterRepository.find({
+      relations: ['semesterName', 'academicYear'],
       // take: 10,
     });
   }

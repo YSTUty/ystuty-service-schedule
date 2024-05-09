@@ -415,4 +415,19 @@ export class ScheduleController {
     }
     return result;
   }
+
+  @Get('all_semesters')
+  @Version('1')
+  @ApiOperation({ summary: 'Вернуть список всех семестров' })
+  @Throttle({ default: { limit: 1, ttl: 2e3 } })
+  @NeedAuth()
+  @OAuth2RequiredScope('schedule', ['read'])
+  async getScheduleSemesters() {
+    const result = await this.scheduleService.getScheduleSemesters();
+
+    if (!result) {
+      throw new NotFoundException('semesters not found');
+    }
+    return result;
+  }
 }
