@@ -32,6 +32,8 @@ export const MS_OAUTH_SERVER_PORT: number =
   +process.env.MS_OAUTH_SERVER_PORT ?? 3000;
 export const MS_OAUTH_SERVER_HOST: string =
   process.env.MS_OAUTH_SERVER_HOST ?? 'ms_oauth_server';
+export const OAUTH_SERVER_SERVICE_TOKEN: string =
+  process.env.OAUTH_SERVER_SERVICE_TOKEN;
 
 // * oAuth Client
 export const OAUTH_URL = process.env.OAUTH_URL || 'http://ystuty_oauth';

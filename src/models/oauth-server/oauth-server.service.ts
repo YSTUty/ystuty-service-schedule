@@ -5,7 +5,7 @@ import * as rxjs from 'rxjs';
 import * as xEnv from '@my-environment';
 import { mutatorClientProxy } from '@my-common';
 
-import { ClientPayloadDto } from './dto/oauth2-payload.dto';
+import { UserOrClientPayloadDto } from './dto/oauth2-payload.dto';
 
 @Injectable()
 export class OAuthServerService {
@@ -21,9 +21,10 @@ export class OAuthServerService {
             clientId: xEnv.OAUTH_CLIENT_ID,
             clientSecret: xEnv.OAUTH_CLIENT_SECRET,
             accessToken,
+            serviceToken: xEnv.OAUTH_SERVER_SERVICE_TOKEN,
           },
         )
-        .pipe(...mutatorClientProxy(ClientPayloadDto)),
+        .pipe(...mutatorClientProxy(UserOrClientPayloadDto)),
     );
 
     return result;
