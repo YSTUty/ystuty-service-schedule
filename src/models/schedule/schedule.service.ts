@@ -975,6 +975,9 @@ export class ScheduleService {
           subInfo = undefined;
           type |= LessonFlags.Unsupported;
         }
+        if (type === LessonFlags.None) {
+          type |= LessonFlags.Unsupported;
+        }
       }
 
       const lesson = new LessonDto({
