@@ -18,7 +18,7 @@ export const NODE_ENV: EnvType =
 // Application
 export const APP_NAME: string =
   process.env.MAIN_NAME || '[YSTUty.Service] Schedule';
-export const APP_DOMAIN: string = process.env.MAIN_DOMAIN || '127.0.0.1';
+export const APP_DOMAIN: string = process.env.APP_DOMAIN || '127.0.0.1';
 export const SERVER_PORT: number = +process.env.SERVER_PORT || 8080;
 export const SERVER_EXTERNAL_PORT: number =
   +process.env.SERVER_EXTERNAL_PORT || SERVER_PORT;
@@ -38,7 +38,7 @@ export const OAUTH_SERVER_SERVICE_TOKEN: string =
 // * oAuth Client
 export const OAUTH_URL = process.env.OAUTH_URL || 'http://ystuty_oauth';
 export const OAUTH_CLIENT_ID =
-  process.env.OAUTH_CLIENT_ID || 'ystuty-social-connect';
+  process.env.OAUTH_CLIENT_ID || 'ystuty-s-schedule';
 export const OAUTH_CLIENT_SECRET = process.env.OAUTH_CLIENT_SECRET || '';
 // export const OAUTH_REDIRECT_URI =
 //   process.env.OAUTH_REDIRECT_URI || `${SERVER_URL}/callback/oauth`;
