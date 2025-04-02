@@ -18,7 +18,13 @@ import {
   ScheduleView,
   Teacher,
 } from './entity';
-import { InstituteGroupsDto, LessonDto, OneDayDto, OneWeekDto } from './dto';
+import {
+  GroupDetailDto,
+  InstituteGroupsDto,
+  LessonDto,
+  OneDayDto,
+  OneWeekDto,
+} from './dto';
 import { RedisService } from '../redis/redis.service';
 
 interface IExamDay {
@@ -170,11 +176,27 @@ export class ScheduleService {
     const raws = await qb.getRawMany();
 
     const rowsByFaculty: Record<number, InstituteGroupsDto> = {};
-    let namerasp: string = null;
+    let defaultNamerasp: string = null;
 
     for (const raw of raws) {
-      const { idfac, groupId, namefac, name, courseNumber, fl_lek } = raw;
-      namerasp = raw.namerasp;
+      const {
+        namerasp,
+        idfac,
+        groupId,
+        namefac,
+        name,
+        courseNumber,
+        fl_lek,
+      }: {
+        namerasp: string;
+        idfac: number;
+        groupId: number;
+        namefac: string;
+        name: string;
+        courseNumber: number;
+        fl_lek: number;
+      } = raw;
+      defaultNamerasp = namerasp;
 
       if (!rowsByFaculty[idfac]) {
         rowsByFaculty[idfac] = {
@@ -189,20 +211,17 @@ export class ScheduleService {
       if (!additional) {
         rowsByFaculty[idfac].groups.push(name);
       } else {
-        let group = (
-          rowsByFaculty[idfac].groups as {
-            course: number;
-            name: string;
-            id_schedule: number;
-            hasLecture: boolean;
-          }[]
-        ).find((e) => e.name === name);
+        let group = (rowsByFaculty[idfac].groups as GroupDetailDto[]).find(
+          (e) => e.name === name,
+        );
         if (!group) {
           group = {
             course: courseNumber,
-            name: name,
+            name,
             id_schedule: groupId || null,
+            groupId,
             hasLecture: false,
+            scheduleName: namerasp,
           };
           rowsByFaculty[idfac].groups.push(group);
         }
@@ -218,7 +237,20 @@ export class ScheduleService {
       return null;
     }
 
-    const response = { isCache: undefined as boolean, name: namerasp, items };
+    if (!additional) {
+      for (const item of items) {
+        item.groups = [...new Set(item.groups as string[])].sort((a, b) =>
+          a.localeCompare(b),
+        );
+      }
+    }
+
+    const response = {
+      isCache: undefined as boolean,
+      /** @deprecated */
+      name: defaultNamerasp,
+      items,
+    };
     if (this.allowCaching) {
       await this.redisService.redis.set(
         cacheKey,

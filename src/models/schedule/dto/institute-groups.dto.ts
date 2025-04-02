@@ -12,21 +12,32 @@ export class GroupDetailDto {
    */
   name: string;
   /**
-   * ID расписания
+   * ID расписания группы
+   * @deprecated Использовать `groupId`
    * @example 4627
    */
   id_schedule: number | null;
+  /**
+   * ID расписания группы
+   * @example 4627
+   */
+  groupId: number | null;
   /**
    * Есть ли лекционная неделя
    * @example true
    */
   hasLecture: boolean;
+  /**
+   * Название расписания
+   * @example '2024/2025 Осенний семестр'
+   */
+  scheduleName: string;
 }
 
 /**
  * Название института и массив групп
  */
-export class InstituteGroupsDto {
+export class InstituteGroupsDto<GT = GroupDetailDto | string> {
   id?: number;
 
   /**
@@ -50,5 +61,5 @@ export class InstituteGroupsDto {
       ],
     },
   })
-  groups: (GroupDetailDto | string)[];
+  groups: GT[];
 }
