@@ -25,7 +25,15 @@ async function bootstrap() {
   });
 
   app.enableShutdownHooks();
-  app.enableCors({});
+  app.enableCors({
+    allowedHeaders: ['authorization'],
+    exposedHeaders: [
+      'x-ratelimit-limit',
+      'x-ratelimit-remaining',
+      'x-ratelimit-reset',
+      'retry-after',
+    ],
+  });
 
   app.useGlobalGuards(new OnlyDevGuard());
   app.useGlobalPipes(new ValidationHttpPipe({ transform: true }));
