@@ -26,7 +26,7 @@ async function bootstrap() {
 
   app.enableShutdownHooks();
   app.enableCors({
-    allowedHeaders: ['authorization'],
+    allowedHeaders: ['content-type', 'authorization'],
     exposedHeaders: [
       'x-ratelimit-limit',
       'x-ratelimit-remaining',
