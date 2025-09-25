@@ -29,7 +29,7 @@ export const CUSTOM_CALENDAR_URL: string =
 
 // * oAuth server
 export const MS_OAUTH_SERVER_PORT: number =
-  +process.env.MS_OAUTH_SERVER_PORT ?? 3000;
+  +process.env.MS_OAUTH_SERVER_PORT || 3000;
 export const MS_OAUTH_SERVER_HOST: string =
   process.env.MS_OAUTH_SERVER_HOST ?? 'ms_oauth_server';
 export const OAUTH_SERVER_SERVICE_TOKEN: string =
