@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { Logger, VersioningType } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { apiReference } from '@scalar/nestjs-api-reference';
 import * as basicAuth from 'express-basic-auth';
 import * as swStats from 'swagger-stats';
 import * as requestIp from 'request-ip';
@@ -50,10 +51,11 @@ async function bootstrap() {
 
   app.use(requestIp.mw({ attributeName: 'ip' }));
 
+  const pathToReference = '/reference';
   if (xEnv.SWAGGER_ACCESS_USERNAME) {
     if (xEnv.SWAGGER_ACCESS_PASSWORD) {
       app.use(
-        ['/swagger', '/swagger-json'],
+        [pathToReference, '/swagger', '/swagger-json'],
         basicAuth({
           challenge: true,
           users: {
@@ -109,6 +111,7 @@ async function bootstrap() {
   SwaggerModule.setup('swagger', app, swaggerSpec, {});
 
   app.use(swStats.getMiddleware({ swaggerSpec }));
+  app.use(pathToReference, apiReference({ spec: { content: swaggerSpec } }));
 
   await app.listen(xEnv.SERVER_PORT);
 
