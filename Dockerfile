@@ -11,7 +11,7 @@ RUN jq '{ dependencies, devDependencies, peerDependencies, resolutions, license,
 ##
 # [container] Package deps
 ##
-FROM node:18-alpine AS deps
+FROM node:22-alpine AS deps
 
 WORKDIR /deps
 
@@ -26,7 +26,7 @@ RUN yarn install --pure-lockfile; \
 ##
 # [container] Base
 ##
-FROM node:18-alpine AS base
+FROM node:22-alpine AS base
 
 WORKDIR /home/node/app
 
