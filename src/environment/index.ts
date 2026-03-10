@@ -17,13 +17,12 @@ export const NODE_ENV: EnvType =
 
 // Application
 export const APP_NAME: string =
-  process.env.MAIN_NAME || '[YSTUty.Service] Schedule';
+  process.env.APP_NAME || '[YSTUty.Service] Schedule';
 export const APP_DOMAIN: string = process.env.APP_DOMAIN || '127.0.0.1';
 export const SERVER_PORT: number = +process.env.SERVER_PORT || 8080;
-export const SERVER_EXTERNAL_PORT: number =
-  +process.env.SERVER_EXTERNAL_PORT || SERVER_PORT;
+export const EXTERNAL_PORT: number = +process.env.EXTERNAL_PORT || SERVER_PORT;
 export const SERVER_URL: string =
-  process.env.SERVER_URL || `http://${APP_DOMAIN}:${SERVER_EXTERNAL_PORT}`;
+  process.env.SERVER_URL || `http://${APP_DOMAIN}:${EXTERNAL_PORT}`;
 export const CUSTOM_CALENDAR_URL: string =
   process.env.CUSTOM_CALENDAR_URL || `${SERVER_URL}/v1/calendar`;
 

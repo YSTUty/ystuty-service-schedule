@@ -1,41 +1,34 @@
-version: '3.8'
-
 services:
   app_srv:
+    hostname: ystuty-service-schedule
     build:
       context: .
-      target: production
+      target: build
       dockerfile: ./Dockerfile
-    command: yarn start:prod
-    links:
-      - redis
-      # - postgres
+    command: yarn start:dev
     ports:
       # 8080 is the default port
-      - ${SERVER_EXTERNAL_PORT:-8080}:${SERVER_PORT:-8080}
+      - ${EXTERNAL_PORT:-25604}:${SERVER_PORT:-8080}
+      # - ${EXTERNAL_MS_PORT:-7484}:${SERVER_MS_PORT:-3000}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    networks:
+      - ystuty-network
+      - ystuty-service-network
     volumes:
       - ./.env:/home/node/app/.env
-    networks:
-      - ystuty_network
     healthcheck:
-      test: curl --fail http://localhost:${SERVER_PORT:-8080}/uptime || exit 1
+      test: curl --fail http://localhost:${SERVER_PORT:-8080}${HEALTH_PATH:-/uptime} || exit 1
       interval: 2m
       retries: 3
       start_period: 40s
       timeout: 10s
     restart: unless-stopped
-    stdin_open: true # docker run -i
-    tty: true # docker run -t
-
-  redis:
-    image: 'redis:alpine'
-    volumes:
-      - ./redis-data:/data
-    networks:
-      - ystuty_network
-    restart: unless-stopped
+    stdin_open: true
+    tty: true
 
 networks:
-  ystuty_network:
-    external:
-      name: ystuty_network
+  ystuty-network:
+    external: true
+  ystuty-service-network:
+    external: true
