@@ -1,4 +1,4 @@
-import { NestFactory } from '@nestjs/core';
+import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { Logger, VersioningType } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -48,9 +48,23 @@ async function bootstrap() {
     ],
   });
 
+  // app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
+
   app.useGlobalGuards(new OnlyDevGuard());
-  app.useGlobalPipes(new ValidationHttpPipe({ transform: true }));
-  app.useGlobalFilters(new HttpAndRpcExceptionFilter());
+  app.useGlobalPipes(
+    new ValidationHttpPipe({
+      transform: true,
+      // whitelist: true,
+      // forbidNonWhitelisted: false,
+      // transformOptions: {
+      //   // groups: [FOR_SYS],
+      //   enableImplicitConversion: true,
+      //   // enableCircularCheck: true,
+      // },
+    }),
+  );
+  const httpAdapterHost = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new HttpAndRpcExceptionFilter(httpAdapterHost));
 
   app.use(compression());
   app.use(
@@ -168,6 +182,18 @@ async function bootstrap() {
     'Bootstrap',
   );
 }
+
+const logger = new Logger('GlobalErrorHandler');
+process.on('uncaughtException', (error: Error, origin: string) => {
+  logger.error(`Uncaught Exception: ${error.message}`, error.stack);
+});
+process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+  logger.error(
+    `Unhandled Rejection at: ${promise}, reason: ${reason?.message || reason}`,
+    reason?.stack,
+  );
+});
+
 bootstrap().catch((e) => {
   Logger.warn(`❌  Error starting server, ${e}`, 'Bootstrap');
   throw e;

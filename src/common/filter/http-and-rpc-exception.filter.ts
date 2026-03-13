@@ -1,34 +1,44 @@
+import { HttpAdapterHost } from '@nestjs/core';
 import {
   HttpStatus,
   ExceptionFilter,
   Catch,
   ArgumentsHost,
   HttpException,
+  Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
-import * as rxjs from 'rxjs';
-import { Response } from 'express';
-import { HttpRpcException } from '../exception/http-rpc-exception';
 import { RpcException } from '@nestjs/microservices';
+import * as rxjs from 'rxjs';
+import { Request, Response } from 'express';
+import { HttpRpcException } from '../exception/http-rpc-exception';
 
 /**
  * Универсальный фильр ошибок для ответа на HTTP или RPC
  */
 @Catch()
 export class HttpAndRpcExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(HttpAndRpcExceptionFilter.name);
+
+  constructor(private readonly httpAdapterHost: HttpAdapterHost) {}
+
   catch(exception: Error | HttpRpcException, host: ArgumentsHost) {
     if (host.getType() !== 'http' && host.getType() !== 'rpc') {
-      return exception;
+      // throw exception; // ?
+      return;
     }
 
-    let expResponse: string | Record<string, any> = null;
-    let code = HttpStatus.INTERNAL_SERVER_ERROR;
-    let { message } = exception;
-    let errorName: string;
+    const httpException =
+      exception instanceof HttpException
+        ? exception
+        : new InternalServerErrorException({}, { cause: exception });
 
-    if (exception instanceof HttpException) {
-      code = exception.getStatus?.();
-      expResponse = exception.getResponse?.() as string | any;
-    } else if (exception instanceof RpcException) {
+    let expResponse: string | Record<string, any> | null =
+      httpException.getResponse() || null;
+    let code = httpException.getStatus() || HttpStatus.INTERNAL_SERVER_ERROR;
+    let message: string | undefined = httpException.message || undefined;
+
+    if (exception instanceof RpcException) {
       expResponse = exception.getError();
       // isObject(expResponse) && 'error' in expResponse
       // message = undefined;
@@ -36,13 +46,12 @@ export class HttpAndRpcExceptionFilter implements ExceptionFilter {
       expResponse = exception.getError();
       code = exception.getStatus();
     } else {
-      message = undefined;
+      // message = undefined;
     }
-
-    code ??= HttpStatus.INTERNAL_SERVER_ERROR;
 
     let payload: any;
     let validation: any;
+    let errorName: string;
     if (expResponse && typeof expResponse !== 'string') {
       payload = expResponse.payload;
       validation = expResponse.validation;
@@ -64,6 +73,18 @@ export class HttpAndRpcExceptionFilter implements ExceptionFilter {
       return rxjs.throwError(() => ({ status: 'error', ...error }));
     }
 
-    host.switchToHttp().getResponse<Response>().status(code).json({ error });
+    const { httpAdapter } = this.httpAdapterHost;
+    const ctxHttp = host.switchToHttp();
+
+    const request = ctxHttp.getRequest<Request>();
+    if (code == HttpStatus.INTERNAL_SERVER_ERROR) {
+      this.logger.error(
+        `[${code}] ${errorName} (IP=${request.ip}) [${httpAdapter.getRequestMethod(request)}]{"${httpAdapter.getRequestUrl(request)}"}: ${exception.message}`,
+        /* (httpException.cause as Error) */ exception.stack,
+      );
+    }
+
+    // ctxHttp.getResponse<Response>().status(code).json({ error });
+    httpAdapter.reply(ctxHttp.getResponse<Response>(), { error }, code);
   }
 }
