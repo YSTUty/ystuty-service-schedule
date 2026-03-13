@@ -1174,28 +1174,34 @@
   resolved "https://registry.yarnpkg.com/@pkgr/core/-/core-0.1.1.tgz#1ec17e2edbec25c8306d424ecfbf13c7de1aaa31"
   integrity sha512-cq8o4cWH0ibXh9VGi5P20Tu9XF/0fFXl9EUinr9QfTM7a7p0oTA4iJRCQWppXR1Pg8dSM0UCItCkPwsk9qWWYA==
 
-"@scalar/nestjs-api-reference@^0.5.14":
-  version "0.5.14"
-  resolved "https://registry.yarnpkg.com/@scalar/nestjs-api-reference/-/nestjs-api-reference-0.5.14.tgz#fc26e04c8edacef610fb1e7280a38914748552b5"
-  integrity sha512-SYWChX6ntmhRorDjN4mwQ72ZKazET7OiIKp5LnbUUZiN3GzVzhiFl5PHZthSH2W6UWjds3JQlW0Xgt7vyQzf9w==
+"@scalar/core@0.4.3":
+  version "0.4.3"
+  resolved "https://registry.yarnpkg.com/@scalar/core/-/core-0.4.3.tgz#4be705470362dd26993e1361c44d0e0a8a0e3528"
+  integrity sha512-Fp/J5RyajknwZrDG5/nsJRxL07cS2gJ9wvnvIWcFgsR8HWy/7qMQ+PtpYhdBmMYiBAql1JJobKTu/7ZWqnHaFA==
   dependencies:
-    "@scalar/types" "0.2.13"
+    "@scalar/types" "0.7.3"
 
-"@scalar/openapi-types@0.3.7":
-  version "0.3.7"
-  resolved "https://registry.yarnpkg.com/@scalar/openapi-types/-/openapi-types-0.3.7.tgz#fab0345100dc74b05c0973337f08751e8b6067a9"
-  integrity sha512-QHSvHBVDze3+dUwAhIGq6l1iOev4jdoqdBK7QpfeN1Q4h+6qpVEw3EEqBiH0AXUSh/iWwObBv4uMgfIx0aNZ5g==
-  dependencies:
-    zod "3.24.1"
+"@scalar/helpers@0.4.1":
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/@scalar/helpers/-/helpers-0.4.1.tgz#d43ce1358d31dd2f36586eca59899c7c7761a365"
+  integrity sha512-XfyYqSUA597wfzS8lmMY1xvYv4si2WytuoBWj7JDpx3E/lVq7YEsticXF/Q30ttFVRBfgQErg8MQI6b6IkZr2Q==
 
-"@scalar/types@0.2.13":
-  version "0.2.13"
-  resolved "https://registry.yarnpkg.com/@scalar/types/-/types-0.2.13.tgz#eeff8ec7f05eae404db114e135f9d0e753562d74"
-  integrity sha512-rO6KGMJqOsBnN/2R4fErMFLpRSPVJElni+HABDpf+ZlLJp2lvxuPn0IXLumK5ytfplUH9iqKgSXjndnZfxSYLQ==
+"@scalar/nestjs-api-reference@^1.1.3":
+  version "1.1.3"
+  resolved "https://registry.yarnpkg.com/@scalar/nestjs-api-reference/-/nestjs-api-reference-1.1.3.tgz#305f31e1fddf68085cc6c3c74fe902748d140bba"
+  integrity sha512-gUWWrEbi/IHLV+CtbyXUmilzVdIltfgXWdALnIAndbXkvZhejqw3yxXFSCArKhC2QU1zBI1HhZ1DT+jNiHl+Rg==
   dependencies:
-    "@scalar/openapi-types" "0.3.7"
-    nanoid "5.1.5"
-    zod "3.24.1"
+    "@scalar/core" "0.4.3"
+
+"@scalar/types@0.7.3":
+  version "0.7.3"
+  resolved "https://registry.yarnpkg.com/@scalar/types/-/types-0.7.3.tgz#5719bacda7685f31985aae2600cd24ae046a37cf"
+  integrity sha512-9ThydMH28aA5DMm8Q/nTKXKnAKejG7Awlj7IC99oXkq5aOJ60Sn0kS1RWaqQosaWI3ezyPJ7/sUglssAEMA6EA==
+  dependencies:
+    "@scalar/helpers" "0.4.1"
+    nanoid "^5.1.6"
+    type-fest "^5.3.1"
+    zod "^4.3.5"
 
 "@sinclair/typebox@^0.27.8":
   version "0.27.8"
@@ -5429,10 +5435,10 @@ mz@^2.4.0:
     object-assign "^4.0.1"
     thenify-all "^1.0.0"
 
-nanoid@5.1.5:
-  version "5.1.5"
-  resolved "https://registry.yarnpkg.com/nanoid/-/nanoid-5.1.5.tgz#f7597f9d9054eb4da9548cdd53ca70f1790e87de"
-  integrity sha512-Ir/+ZpE9fDsNH0hQ3C68uyThDXzYcim2EqcZ8zn8Chtt1iylPT9xXJB0kPCnqzgcEGikO9RxSrh63MsmVCU7Fw==
+nanoid@^5.1.6:
+  version "5.1.6"
+  resolved "https://registry.yarnpkg.com/nanoid/-/nanoid-5.1.6.tgz#30363f664797e7d40429f6c16946d6bd7a3f26c9"
+  integrity sha512-c7+7RQ+dMB5dPwwCp4ee1/iV/q2P6aK1mTZcfr1BTuVlyW9hJYiMPybJCcnBlQtuSmTIWNeazm/zqNoZSSElBg==
 
 native-duplexpair@^1.0.0:
   version "1.0.0"
@@ -6759,6 +6765,11 @@ synckit@^0.8.6:
     "@pkgr/core" "^0.1.0"
     tslib "^2.6.2"
 
+tagged-tag@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/tagged-tag/-/tagged-tag-1.0.0.tgz#a0b5917c2864cba54841495abfa3f6b13edcf4d6"
+  integrity sha512-yEFYrVhod+hdNyx7g5Bnkkb0G6si8HJurOoOEgC8B/O0uXLHlaey/65KRv6cuWBNhBgHKAROVpc7QyYqE5gFng==
+
 tapable@^2.1.1, tapable@^2.2.0, tapable@^2.2.1:
   version "2.2.1"
   resolved "https://registry.yarnpkg.com/tapable/-/tapable-2.2.1.tgz#1967a73ef4060a82f12ab96af86d52fdb76eeca0"
@@ -7030,6 +7041,13 @@ type-fest@^0.8.1:
   version "0.8.1"
   resolved "https://registry.yarnpkg.com/type-fest/-/type-fest-0.8.1.tgz#09e249ebde851d3b1e48d27c105444667f17b83d"
   integrity sha512-4dbzIzqvjtgiM5rw1k5rEHtBANKmdudhGyBEajN01fEyhaAIhsoKNy6y7+IN93IfpFtwY9iqi7kD+xwKhQsNJA==
+
+type-fest@^5.3.1:
+  version "5.4.4"
+  resolved "https://registry.yarnpkg.com/type-fest/-/type-fest-5.4.4.tgz#577f165b5ecb44cfc686559cc54ca77f62aa374d"
+  integrity sha512-JnTrzGu+zPV3aXIUhnyWJj4z/wigMsdYajGLIYakqyOW1nPllzXEJee0QQbHj+CTIQtXGlAjuK0UY+2xTyjVAw==
+  dependencies:
+    tagged-tag "^1.0.0"
 
 type-is@^1.6.4, type-is@~1.6.18:
   version "1.6.18"
@@ -7443,7 +7461,7 @@ yocto-queue@^0.1.0:
   resolved "https://registry.yarnpkg.com/yocto-queue/-/yocto-queue-0.1.0.tgz#0294eb3dee05028d31ee1a5fa2c556a6aaf10a1b"
   integrity sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==
 
-zod@3.24.1:
-  version "3.24.1"
-  resolved "https://registry.yarnpkg.com/zod/-/zod-3.24.1.tgz#27445c912738c8ad1e9de1bea0359fa44d9d35ee"
-  integrity sha512-muH7gBL9sI1nciMZV67X5fTKKBLtwpZ5VBp1vsOQzj1MhrBZ4wlVCm3gedKZWLp0Oyel8sIGfeiz54Su+OVT+A==
+zod@^4.3.5:
+  version "4.3.6"
+  resolved "https://registry.yarnpkg.com/zod/-/zod-4.3.6.tgz#89c56e0aa7d2b05107d894412227087885ab112a"
+  integrity sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==

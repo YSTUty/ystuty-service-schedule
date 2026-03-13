@@ -2,14 +2,16 @@ import { NestFactory } from '@nestjs/core';
 import { Logger, VersioningType } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { apiReference } from '@scalar/nestjs-api-reference';
 import * as basicAuth from 'express-basic-auth';
 import * as swStats from 'swagger-stats';
 import * as requestIp from 'request-ip';
 import * as compression from 'compression';
+import { apiReference } from '@scalar/nestjs-api-reference';
+import { HtmlRenderingConfiguration } from '@scalar/types/dist/api-reference';
 import helmet from 'helmet';
 
 import * as xEnv from '@my-environment';
+
 import {
   HttpAndRpcExceptionFilter,
   OnlyDevGuard,
@@ -19,10 +21,20 @@ import {
 import { AppModule } from './models/app/app.module';
 
 async function bootstrap() {
+  Logger.log(
+    `🥙 Application (${process.env.npm_package_name}@v${process.env.npm_package_version})`,
+    'NestJS',
+  );
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // app.set('query parser', 'extended');
+  // app.set('trust proxy', true); // ?
+
   // app.setGlobalPrefix('api');
   app.enableVersioning({
     type: VersioningType.URI,
+    // defaultVersion: '1',
   });
 
   app.enableShutdownHooks();
@@ -45,10 +57,10 @@ async function bootstrap() {
     helmet({
       hidePoweredBy: true,
       crossOriginEmbedderPolicy: false,
+      // crossOriginResourcePolicy: { policy: 'cross-origin' },
       contentSecurityPolicy: false,
     }),
   );
-
   app.use(requestIp.mw({ attributeName: 'ip' }));
 
   const pathToReference = '/reference';
@@ -85,7 +97,6 @@ async function bootstrap() {
     .setVersion(process.env.npm_package_version)
     .addTag('schedule', 'YSTU Schedule')
     .addTag('calendar', 'YSTU Calendar')
-    .addServer(`${xEnv.SERVER_URL}`, 'Main API Server (for main requests)')
     .addServer(`${xEnv.OAUTH_URL}`, 'Main oAuth Server (for get token)')
     .addOAuth2(
       {
@@ -107,12 +118,43 @@ async function bootstrap() {
     .addApiKey({ type: 'apiKey', in: 'query' }, 'access_token')
     .addBearerAuth({ type: 'http', bearerFormat: 'Bearer' }, 'bearer');
 
-  const swaggerSpec = SwaggerModule.createDocument(app, swaggerConfig.build());
+  if (xEnv.NODE_ENV === xEnv.EnvType.DEV) {
+    swaggerConfig.addServer(`http://{host}:{port}`, 'API local dev', {
+      host: {
+        default: 'localhost',
+        enum: ['localhost', '127.0.0.1', '[::1]'],
+      },
+      port: {
+        default: String(xEnv.EXTERNAL_PORT),
+        enum: [...new Set([xEnv.EXTERNAL_PORT, xEnv.SERVER_PORT].map(String))],
+      },
+    });
+  }
+  swaggerConfig.addServer(
+    `${xEnv.SERVER_URL}`,
+    'Main API Server (for main requests)',
+  );
+
+  const swaggerSpec = SwaggerModule.createDocument(app, swaggerConfig.build(), {
+    extraModels: [],
+  });
   SwaggerModule.setup('swagger', app, swaggerSpec, {});
 
-  app.use(swStats.getMiddleware({ swaggerSpec }));
-  app.use(pathToReference, apiReference({ spec: { content: swaggerSpec } }));
+  // TODO!: отключил статистику (`swaggerOnly: true`) пока не пофикшена утечка роутов в swagger-stats
+  app.use(swStats.getMiddleware({ swaggerSpec, swaggerOnly: true }));
+  app.use(
+    pathToReference,
+    apiReference({
+      content: swaggerSpec,
+      telemetry: false,
+      _integration: 'react', // 'nestjs'
+      showToolbar: 'never',
+      theme: 'deepSpace',
+      pageTitle: `${xEnv.APP_NAME} API Reference`,
+    } as Partial<HtmlRenderingConfiguration>),
+  );
 
+  await app.startAllMicroservices();
   await app.listen(xEnv.SERVER_PORT);
 
   if (xEnv.NODE_ENV !== xEnv.EnvType.PROD) {
