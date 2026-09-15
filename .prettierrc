@@ -1,4 +1,50 @@
 {
+  "printWidth": 80,
+  "tabWidth": 2,
   "singleQuote": true,
-  "trailingComma": "all"
+  "trailingComma": "all",
+  "bracketSameLine": true,
+  "semi": true,
+  "importOrder": [
+    "^@nestjs/common(/.*)?$",
+    "^@nestjs/core(/.*)?$",
+    "^@nestjs/typeorm$",
+    "^@nestjs/platform-express$",
+    "^@nestjs/swagger$",
+    "^@nestjs/throttler$",
+    "^@nestjs/bull$",
+    "^@nestjs/schedule$",
+    "^@nestjs/axios$",
+    "^@nestjs/(.*)$",
+    "^@nestjsx/crud$",
+    "^nestjs-(.*)$",
+    "^@xtcry/(.*)$",
+    "^class-transformer|class-validator$",
+    "^typeorm$",
+    "^typeorm-transactional$",
+    "<SEPARATOR>",
+    "<THIRD_PARTY_MODULES>",
+    "<SEPARATOR>",
+    "^@my-environment$",
+    "<SEPARATOR>",
+    "^@my-common(/.*)?$",
+    "^@my-interfaces(/.*)?$",
+    "<SEPARATOR>",
+    "^\\.\\./(.*)",
+    "<SEPARATOR>",
+    "^[\\./]"
+  ],
+  "importOrderSeparation": true,
+  "importOrderSideEffects": false,
+  "importOrderCaseInsensitive": true,
+  "importOrderGroupNamespaceSpecifiers": true,
+  "importOrderSortSpecifiers": true,
+  "importOrderParserPlugins": [
+    "typescript",
+    "classProperties",
+    "decorators-legacy"
+  ],
+  "plugins": [
+    "@trivago/prettier-plugin-sort-imports"
+  ]
 }

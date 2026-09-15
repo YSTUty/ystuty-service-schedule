@@ -1,6 +1,7 @@
-import { extendArrayMetadata } from '@nestjs/common/utils/extend-metadata.util';
+import { DECORATORS as swaggerDecorators } from '@nestjs/swagger';
+
 import { OAUTH2_REQUIRED_SCOPES } from '../constant/oauth2.constants';
-import { DECORATORS as swaggerDecorators } from '@nestjs/swagger/dist/constants';
+import { extendArrayMetadata } from '../util/extend-metadata.util';
 
 /**
  * Required scopes for access

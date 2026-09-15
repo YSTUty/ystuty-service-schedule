@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import * as Redlock from 'redlock';
 import * as xEnv from '@my-environment';
 
 @Injectable()
 export class RedisService {
-  public readonly redis: Redis.Redis;
+  public readonly redis: Redis;
   public readonly redlock: Redlock;
 
   constructor() {
@@ -16,6 +16,6 @@ export class RedisService {
       keyPrefix: xEnv.REDIS_PREFIX,
     });
 
-    this.redlock = new Redlock([this.redis]);
+    this.redlock = new Redlock([this.redis as any]);
   }
 }

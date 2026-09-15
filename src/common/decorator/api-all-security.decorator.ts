@@ -1,6 +1,6 @@
-import { SecurityRequirementObject } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
-import { DECORATORS } from '@nestjs/swagger/dist/constants';
-import { extendMetadata } from '@nestjs/swagger/dist/utils/extend-metadata.util';
+import { DECORATORS, SecurityRequirementObject } from '@nestjs/swagger';
+
+import { extendMetadata } from '../util/extend-metadata.util';
 
 export const ApiAllSecurity = (
   scopes: string[] = [],
