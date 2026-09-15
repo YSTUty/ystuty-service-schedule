@@ -1,5 +1,6 @@
-import { Exclude, plainToClass } from 'class-transformer';
 import { ApiHideProperty } from '@nestjs/swagger';
+import { Exclude, plainToClass } from 'class-transformer';
+
 import { LessonFlags, WeekParityType } from '@my-interfaces';
 
 export class LessonDto {

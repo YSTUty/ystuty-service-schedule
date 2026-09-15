@@ -11,8 +11,8 @@ import {
 import { OAuth2PayloadType } from '@my-interfaces';
 
 import {
-  UserPayloadDto,
   ClientPayloadDto,
+  UserPayloadDto,
 } from '../oauth-server/dto/oauth2-payload.dto';
 
 @Controller()

@@ -1,11 +1,12 @@
-import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { Logger, VersioningType } from '@nestjs/common';
+import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import * as basicAuth from 'express-basic-auth';
-import * as swStats from 'swagger-stats';
-import * as requestIp from 'request-ip';
+
 import * as compression from 'compression';
+import * as basicAuth from 'express-basic-auth';
+import * as requestIp from 'request-ip';
+import * as swStats from 'swagger-stats';
 import { apiReference } from '@scalar/nestjs-api-reference';
 import { HtmlRenderingConfiguration } from '@scalar/types/dist/api-reference';
 import helmet from 'helmet';

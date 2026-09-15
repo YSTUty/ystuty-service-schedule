@@ -1,14 +1,14 @@
+import { Exclude, Expose, plainToClass } from 'class-transformer';
 import {
-  Entity,
   Column,
-  PrimaryColumn,
-  OneToMany,
+  Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
+  PrimaryColumn,
 } from 'typeorm';
-import { Exclude, Expose, plainToClass } from 'class-transformer';
 
-import { Exam, Department } from '.';
+import { Department, Exam } from '.';
 
 @Entity({ name: 'predmet' })
 @Exclude()

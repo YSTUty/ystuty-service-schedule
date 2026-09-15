@@ -1,5 +1,5 @@
-import { Entity, Column, PrimaryColumn, OneToMany } from 'typeorm';
 import { Exclude, Expose, plainToClass } from 'class-transformer';
+import { Column, Entity, OneToMany, PrimaryColumn } from 'typeorm';
 
 import { Department, Group } from '.';
 

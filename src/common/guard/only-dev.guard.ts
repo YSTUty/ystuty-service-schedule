@@ -1,12 +1,15 @@
 import {
-  Injectable,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+
 import { Request } from 'express';
+
 import * as xEnv from '@my-environment';
+
 import { IS_ONLY_DEV } from '@my-common';
 
 @Injectable()

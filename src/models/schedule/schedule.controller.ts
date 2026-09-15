@@ -20,12 +20,13 @@ import {
   getSchemaPath,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+
 import { NeedAuth, OAuth2RequiredScope } from '@my-common';
 import { WeekNumberType } from '@my-interfaces';
 
-import { ScheduleService } from './schedule.service';
 import { GroupDetailDto, InstituteGroupsDto, OneWeekDto } from './dto';
 import { RaspGrWeekView } from './entity';
+import { ScheduleService } from './schedule.service';
 
 @ApiTags('schedule')
 @Controller('/schedule')

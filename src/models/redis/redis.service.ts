@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { Redis } from 'ioredis';
+
 import * as Redlock from 'redlock';
+import { Redis } from 'ioredis';
+
 import * as xEnv from '@my-environment';
 
 @Injectable()

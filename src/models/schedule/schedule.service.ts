@@ -1,15 +1,25 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+
 import * as moment from 'moment';
 
-import { LessonFlags, WeekNumberType, WeekParityType } from '@my-interfaces';
 import {
   getLessonTypeFromStr,
   getWeekNumber,
   getWeekOffsetByYear,
 } from '@my-common';
+import { LessonFlags, WeekNumberType, WeekParityType } from '@my-interfaces';
 
+import { RedisService } from '../redis/redis.service';
+
+import {
+  GroupDetailDto,
+  InstituteGroupsDto,
+  LessonDto,
+  OneDayDto,
+  OneWeekDto,
+} from './dto';
 import {
   Auditory,
   Exam,
@@ -18,14 +28,6 @@ import {
   ScheduleView,
   Teacher,
 } from './entity';
-import {
-  GroupDetailDto,
-  InstituteGroupsDto,
-  LessonDto,
-  OneDayDto,
-  OneWeekDto,
-} from './dto';
-import { RedisService } from '../redis/redis.service';
 
 interface IExamDay {
   date: Date;
@@ -103,7 +105,7 @@ export class ScheduleService {
       count:
         type === 'group'
           ? info.items.flatMap((e) => e.groups).length
-          : info.count ?? info.items.length,
+          : (info.count ?? info.items.length),
     };
 
     if (this.allowCaching && response) {

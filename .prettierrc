@@ -15,7 +15,9 @@
     "^@nestjs/bull$",
     "^@nestjs/schedule$",
     "^@nestjs/axios$",
+    "^@nestjs/passport$",
     "^@nestjs/(.*)$",
+    "^@datafas/crud(.*)?$",
     "^@nestjsx/crud$",
     "^nestjs-(.*)$",
     "^@xtcry/(.*)$",
@@ -44,7 +46,5 @@
     "classProperties",
     "decorators-legacy"
   ],
-  "plugins": [
-    "@trivago/prettier-plugin-sort-imports"
-  ]
+  "plugins": ["@trivago/prettier-plugin-sort-imports"]
 }

@@ -1,5 +1,6 @@
-import { TransformToClass } from '@my-common';
 import { Exclude, Expose } from 'class-transformer';
+
+import { TransformToClass } from '@my-common';
 
 @Exclude()
 export class OAuthAccessTokenResponseDto extends TransformToClass<OAuthAccessTokenResponseDto> {

@@ -1,8 +1,8 @@
 import { Expose, Type } from 'class-transformer';
 import { ValidateIf } from 'class-validator';
 
-import { IOAuth2Payload, OAuth2PayloadType } from '@my-interfaces';
 import { TransformToClass } from '@my-common';
+import { IOAuth2Payload, OAuth2PayloadType } from '@my-interfaces';
 
 import { OAuthAccessTokenResponseDto as AccessToken } from './oauth-access-token-response.dto';
 

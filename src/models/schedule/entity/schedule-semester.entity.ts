@@ -1,5 +1,5 @@
-import { Entity, Column, PrimaryColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Exclude, Expose, plainToClass } from 'class-transformer';
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 
 import { AcademicYear, SemesterName } from '.';
 

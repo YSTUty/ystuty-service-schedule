@@ -15,7 +15,7 @@ export class HttpRpcException extends HttpException {
 
     // || 'syscall' in error
     if (!error || error instanceof Error || !(error.statusCode || error.code)) {
-      response = 'Internal Server Error' /* error.message */;
+      response = 'Internal Server Error'; /* error.message */
       status = HttpStatus.INTERNAL_SERVER_ERROR;
       if (error instanceof Error) {
         options = { cause: error };

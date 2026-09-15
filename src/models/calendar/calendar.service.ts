@@ -1,15 +1,19 @@
 import { Injectable } from '@nestjs/common';
+
+import * as moment from 'moment';
 import ical, {
   ICalCalendar,
   ICalCalendarMethod,
-  ICalEventTransparency,
   ICalEventStatus,
+  ICalEventTransparency,
 } from 'ical-generator';
-import * as moment from 'moment';
+
 import * as xEnv from '@my-environment';
+
 import { getLessonTypeStrArr } from '@my-common';
-import { ScheduleService } from '../schedule/schedule.service';
+
 import { LessonDto } from '../schedule/dto';
+import { ScheduleService } from '../schedule/schedule.service';
 
 @Injectable()
 export class CalendarService {

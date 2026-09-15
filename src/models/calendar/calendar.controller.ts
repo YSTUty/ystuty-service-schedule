@@ -8,8 +8,9 @@ import {
   Res,
   Version,
 } from '@nestjs/common';
-import { RealIP } from 'nestjs-real-ip';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { RealIP } from 'nestjs-real-ip';
+
 import { Request, Response } from 'express';
 
 import { CalendarService } from './calendar.service';

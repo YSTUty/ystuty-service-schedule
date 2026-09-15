@@ -1,8 +1,10 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
+
 import * as rxjs from 'rxjs';
 
 import * as xEnv from '@my-environment';
+
 import { mutatorClientProxy } from '@my-common';
 
 import { UserOrClientPayloadDto } from './dto/oauth2-payload.dto';

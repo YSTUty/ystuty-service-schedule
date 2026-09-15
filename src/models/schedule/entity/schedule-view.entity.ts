@@ -1,5 +1,5 @@
 import { Exclude, Expose, plainToClass } from 'class-transformer';
-import { ViewEntity, ViewColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { JoinColumn, ManyToOne, ViewColumn, ViewEntity } from 'typeorm';
 
 import {
   AcademicSubject,

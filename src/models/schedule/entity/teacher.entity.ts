@@ -1,14 +1,14 @@
-import {
-  Entity,
-  Column,
-  PrimaryColumn,
-  ManyToMany,
-  JoinColumn,
-  ManyToOne,
-} from 'typeorm';
 import { Exclude, Expose, plainToClass } from 'class-transformer';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToMany,
+  ManyToOne,
+  PrimaryColumn,
+} from 'typeorm';
 
-import { Exam, Department } from '.';
+import { Department, Exam } from '.';
 
 @Entity({ name: 'prep' })
 @Exclude()

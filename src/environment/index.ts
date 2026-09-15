@@ -1,6 +1,7 @@
+import type { DataSourceOptions } from 'typeorm';
+
 import * as dotenv from 'dotenv';
 import * as dotenvExpand from 'dotenv-expand';
-import { DataSourceOptions } from 'typeorm';
 
 const config = dotenv.config();
 dotenvExpand.expand(config);

@@ -1,15 +1,15 @@
-import {
-  Entity,
-  Column,
-  PrimaryColumn,
-  JoinColumn,
-  ManyToOne,
-  ManyToMany,
-  JoinTable,
-} from 'typeorm';
 import { Exclude, Expose, plainToClass } from 'class-transformer';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  JoinTable,
+  ManyToMany,
+  ManyToOne,
+  PrimaryColumn,
+} from 'typeorm';
 
-import { Auditory, Group, AcademicSubject, Teacher, Department } from '.';
+import { AcademicSubject, Auditory, Department, Group, Teacher } from '.';
 
 @Entity({ name: 'examen' })
 @Exclude()

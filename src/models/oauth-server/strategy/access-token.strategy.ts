@@ -1,5 +1,6 @@
-import { Inject, Injectable, ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
+
 import { Strategy } from 'passport-http-bearer';
 
 import { OAuthServerService } from '../oauth-server.service';

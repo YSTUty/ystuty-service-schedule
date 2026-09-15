@@ -4,12 +4,12 @@ import { ThrottlerModule } from '@nestjs/throttler';
 
 import { OAuth2AccessTokenGuard, ThrottlerBehindProxyGuard } from '@my-common';
 
-import { AppController } from './app.controller';
-
-import { OAuthServerModule } from '../oauth-server/oauth-server.module';
-import { ScheduleModule } from '../schedule/schedule.module';
-import { RedisModule } from '../redis/redis.module';
 import { CalendarModule } from '../calendar/calendar.module';
+import { OAuthServerModule } from '../oauth-server/oauth-server.module';
+import { RedisModule } from '../redis/redis.module';
+import { ScheduleModule } from '../schedule/schedule.module';
+
+import { AppController } from './app.controller';
 
 // * Разрешить доступ к методам, которые не трубуют глобальной авторизации
 OAuth2AccessTokenGuard.allowNoAuth = true;
