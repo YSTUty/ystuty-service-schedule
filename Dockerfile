@@ -13,7 +13,7 @@ RUN jq '{ dependencies, devDependencies, peerDependencies, resolutions, license,
 ##
 # [container] Package deps
 ##
-FROM node:22-alpine3.22 AS deps
+FROM node:24-alpine3.22 AS deps
 
 WORKDIR /deps
 
@@ -30,7 +30,7 @@ RUN yarn install --frozen-lockfile \
 ##
 # [container] Build
 ##
-FROM node:22-alpine3.22 AS build
+FROM node:24-alpine3.22 AS build
 
 WORKDIR /home/node/app
 
@@ -45,7 +45,7 @@ RUN yarn build
 ##
 # [container] Production
 ##
-FROM node:22-alpine3.22 AS prod-deps
+FROM node:24-alpine3.22 AS prod-deps
 
 WORKDIR /deps
 
@@ -60,7 +60,7 @@ RUN yarn install --frozen-lockfile --production=true \
 ##
 # [container] Production
 ##
-FROM node:22-alpine3.22 AS production
+FROM node:24-alpine3.22 AS production
 
 WORKDIR /home/node/app
 

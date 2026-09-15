@@ -5,6 +5,10 @@
   "author": "xTCry [Vladislav Kh] (https://github.com/xTCry/)",
   "private": true,
   "license": "UNLICENSED",
+  "engines": {
+    "node": "24.x",
+    "yarn": "1.22.x"
+  },
   "bugs": {
     "url": "https://github.com/YSTUty/ystuty-service-schedule/issues"
   },
@@ -78,7 +82,7 @@
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/express": "^4.17.17",
     "@types/jest": "^29.5.12",
-    "@types/node": "22.0.0",
+    "@types/node": "24.13.0",
     "@types/redlock": "^4.0.7",
     "@types/supertest": "^6.0.0",
     "@typescript-eslint/eslint-plugin": "^8.59.0",
