@@ -117,6 +117,13 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^@my-environment$": "<rootDir>/environment",
+      "^@my-common$": "<rootDir>/common",
+      "^@my-common/(.*)$": "<rootDir>/common/$1",
+      "^@my-interfaces$": "<rootDir>/interface",
+      "^@my-interfaces/(.*)$": "<rootDir>/interface/$1"
+    }
   }
 }

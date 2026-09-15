@@ -60,6 +60,29 @@ export class ScheduleService {
     private readonly redisService: RedisService,
   ) {}
 
+  /** Безопасно обновляет необязательный Redis-кэш. */
+  private async writeCache(
+    cacheKey: string,
+    value: unknown,
+    ttlSeconds: number,
+  ): Promise<void> {
+    try {
+      await this.redisService.redis.set(
+        cacheKey,
+        JSON.stringify(value),
+        'EX',
+        ttlSeconds,
+      );
+    } catch (error) {
+      const cacheError =
+        error instanceof Error ? error : new Error(String(error));
+      this.logger.error(
+        `Redis cache write failed: ${cacheError.message}`,
+        cacheError.stack,
+      );
+    }
+  }
+
   async getCount(
     type: 'institute' | 'group' | 'teachers' | 'audiences',
     idSchedule: number = 0,
@@ -109,12 +132,7 @@ export class ScheduleService {
     };
 
     if (this.allowCaching && response) {
-      await this.redisService.redis.set(
-        cacheKey,
-        JSON.stringify(response),
-        'EX',
-        60 * 10,
-      );
+      await this.writeCache(cacheKey, response, 60 * 10);
     }
     return response;
   }
@@ -254,12 +272,7 @@ export class ScheduleService {
       items,
     };
     if (this.allowCaching) {
-      await this.redisService.redis.set(
-        cacheKey,
-        JSON.stringify(response),
-        'EX',
-        60 * 10,
-      );
+      await this.writeCache(cacheKey, response, 60 * 10);
     }
 
     return response;
@@ -341,12 +354,7 @@ export class ScheduleService {
     }
 
     if (this.allowCaching) {
-      await this.redisService.redis.set(
-        cacheKey,
-        JSON.stringify(items),
-        'EX',
-        60 * 5,
-      );
+      await this.writeCache(cacheKey, items, 60 * 5);
     }
 
     return { isCache: false, items };
@@ -443,12 +451,7 @@ export class ScheduleService {
     }
 
     if (this.allowCaching) {
-      await this.redisService.redis.set(
-        cacheKey,
-        JSON.stringify(items),
-        'EX',
-        60 * 5,
-      );
+      await this.writeCache(cacheKey, items, 60 * 5);
     }
 
     return { isCache: false, items };
@@ -539,12 +542,7 @@ export class ScheduleService {
 
     const response = { isCache: undefined as boolean, teacher, items };
     if (this.allowCaching) {
-      await this.redisService.redis.set(
-        cacheKey,
-        JSON.stringify(response),
-        'EX',
-        60 * 5,
-      );
+      await this.writeCache(cacheKey, response, 60 * 5);
     }
 
     return response;
@@ -635,12 +633,7 @@ export class ScheduleService {
     }
 
     if (this.allowCaching) {
-      await this.redisService.redis.set(
-        cacheKey,
-        JSON.stringify(items),
-        'EX',
-        60 * 5,
-      );
+      await this.writeCache(cacheKey, items, 60 * 5);
     }
 
     return { isCache: false, items };
@@ -717,12 +710,7 @@ export class ScheduleService {
     }
 
     if (this.allowCaching) {
-      await this.redisService.redis.set(
-        cacheKey,
-        JSON.stringify(items),
-        'EX',
-        60 * 5,
-      );
+      await this.writeCache(cacheKey, items, 60 * 5);
     }
     return { isCache: false, items, count: items.length };
   }
@@ -794,12 +782,7 @@ export class ScheduleService {
     }
 
     if (this.allowCaching) {
-      await this.redisService.redis.set(
-        cacheKey,
-        JSON.stringify(items),
-        'EX',
-        60 * 5,
-      );
+      await this.writeCache(cacheKey, items, 60 * 5);
     }
     return { isCache: false, items, count: items.length };
   }

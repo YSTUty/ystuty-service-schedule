@@ -2,6 +2,7 @@ import type { DataSourceOptions } from 'typeorm';
 
 import * as dotenv from 'dotenv';
 import * as dotenvExpand from 'dotenv-expand';
+import type { RedisOptions } from 'ioredis';
 
 const config = dotenv.config();
 dotenvExpand.expand(config);
@@ -83,3 +84,11 @@ export const REDIS_PASSWORD: string = process.env.REDIS_PASSWORD;
 export const REDIS_DATABASE: number = +process.env.REDIS_DATABASE || 0;
 export const REDIS_PREFIX: string =
   process.env.REDIS_PREFIX ?? 'ystuty:service:schedule:';
+export const REDIS_CONFIG: RedisOptions = {
+  host: REDIS_HOST,
+  port: REDIS_PORT,
+  db: REDIS_DATABASE,
+  username: REDIS_USER,
+  password: REDIS_PASSWORD,
+  keyPrefix: REDIS_PREFIX,
+};
