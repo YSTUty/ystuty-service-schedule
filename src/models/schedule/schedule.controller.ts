@@ -1,7 +1,8 @@
 import {
+  applyDecorators,
+  BadRequestException,
   ClassSerializerInterceptor,
   Controller,
-  DefaultValuePipe,
   Get,
   NotFoundException,
   Param,
@@ -28,9 +29,35 @@ import {
 } from '@my-common';
 import { WeekNumberType } from '@my-interfaces';
 
-import { GroupDetailDto, InstituteGroupsDto, OneWeekDto } from './dto';
+import {
+  GroupDetailDto,
+  InstituteGroupsDto,
+  OneWeekDto,
+  ScheduleSemesterDto,
+  SemesterQueryDto,
+} from './dto';
 import { RaspGrWeekView } from './entity';
 import { ScheduleService } from './schedule.service';
+
+const ApiSemesterQuery = () =>
+  applyDecorators(
+    ApiQuery({
+      name: 'semesterId',
+      description: 'Публичный идентификатор опубликованного семестра',
+      type: Number,
+      required: false,
+      minimum: 1,
+    }),
+    ApiQuery({
+      name: 'idschedule',
+      description:
+        'Устаревший alias semesterId. Не используйте в новых интеграциях.',
+      type: Number,
+      required: false,
+      minimum: 0,
+      deprecated: true,
+    }),
+  );
 
 @ApiTags('schedule')
 @Controller('/schedule')
@@ -39,8 +66,33 @@ import { ScheduleService } from './schedule.service';
 export class ScheduleController {
   constructor(private readonly scheduleService: ScheduleService) {}
 
+  /**
+   * Нормализует новый query-параметр и legacy alias перед чтением расписания.
+   */
+  private async getPublicSemesterId(query: SemesterQueryDto): Promise<number> {
+    if (
+      query.semesterId !== undefined &&
+      query.idschedule !== undefined &&
+      query.semesterId !== query.idschedule
+    ) {
+      throw new BadRequestException(
+        'semesterId and idschedule must match when both are provided',
+      );
+    }
+
+    const semesterId = query.semesterId ?? query.idschedule ?? 0;
+    const publicSemesterId =
+      await this.scheduleService.resolvePublicSemesterId(semesterId);
+    if (publicSemesterId === null) {
+      throw new NotFoundException('published semester not found');
+    }
+
+    return publicSemesterId;
+  }
+
   @Get('count')
   @Version('1')
+  @ApiSemesterQuery()
   @ApiOperation({ summary: 'Вернуть список с количеством различных данных' })
   @ApiResponse({
     status: 200,
@@ -55,11 +107,21 @@ export class ScheduleController {
       },
     },
   })
-  async getCount() {
-    const institutes = await this.scheduleService.getCount('institute');
-    const groups = await this.scheduleService.getCount('group');
-    const teachers = await this.scheduleService.getCount('teachers');
-    const audiences = await this.scheduleService.getCount('audiences');
+  async getCount(@Query() query: SemesterQueryDto) {
+    const semesterId = await this.getPublicSemesterId(query);
+    const institutes = await this.scheduleService.getCount(
+      'institute',
+      semesterId,
+    );
+    const groups = await this.scheduleService.getCount('group', semesterId);
+    const teachers = await this.scheduleService.getCount(
+      'teachers',
+      semesterId,
+    );
+    const audiences = await this.scheduleService.getCount(
+      'audiences',
+      semesterId,
+    );
     const results = [institutes, groups, teachers, audiences];
     const isFullyCached = results.every((result) => result.cache.isCached);
 
@@ -111,8 +173,13 @@ export class ScheduleController {
     },
   })
   @ApiExtraModels(InstituteGroupsDto, GroupDetailDto)
-  async getActualGroups(@Query('additional') additional: boolean = false) {
-    return await this.scheduleService.getGroups(0, additional);
+  @ApiSemesterQuery()
+  async getActualGroups(
+    @Query('additional') additional: boolean = false,
+    @Query() query: SemesterQueryDto,
+  ) {
+    const semesterId = await this.getPublicSemesterId(query);
+    return await this.scheduleService.getGroups(semesterId, additional);
   }
 
   @Get('group/:groupIdOrName')
@@ -137,12 +204,7 @@ export class ScheduleController {
       // },
     },
   })
-  @ApiQuery({
-    name: 'idschedule',
-    description: '',
-    type: Number,
-    required: false,
-  })
+  @ApiSemesterQuery()
   @ApiResponse({
     status: 200,
     schema: {
@@ -158,18 +220,16 @@ export class ScheduleController {
   })
   async getByGroup(
     @Param('groupIdOrName') groupIdOrName: string,
-    @Query('idschedule', new DefaultValuePipe(0), ParseIntPipe)
-    idSchedule: number,
+    @Query() query: SemesterQueryDto,
   ) {
+    const semesterId = await this.getPublicSemesterId(query);
     const result = await this.scheduleService.getByGroup(
       groupIdOrName,
-      idSchedule,
+      semesterId,
     );
 
     if (!result) {
-      throw new NotFoundException(
-        `group not found by this name or id${idSchedule ? ' or idschedule' : ''}`,
-      );
+      throw new NotFoundException('group not found by this name or id');
     }
     return result;
   }
@@ -198,12 +258,7 @@ export class ScheduleController {
       // },
     },
   })
-  @ApiQuery({
-    name: 'idschedule',
-    description: '',
-    type: Number,
-    required: false,
-  })
+  @ApiSemesterQuery()
   @ApiResponse({
     status: 200,
     schema: {
@@ -239,18 +294,16 @@ export class ScheduleController {
   @OAuth2RequiredScope('schedule', ['advanced'], ['read'])
   async getByGroupAsWeek(
     @Param('groupIdOrName') groupIdOrName: string,
-    @Query('idschedule', new DefaultValuePipe(0), ParseIntPipe)
-    idSchedule: number,
+    @Query() query: SemesterQueryDto,
   ) {
+    const semesterId = await this.getPublicSemesterId(query);
     const result = await this.scheduleService.getByGroupAsWeek(
       groupIdOrName,
-      idSchedule,
+      semesterId,
     );
 
     if (!result) {
-      throw new NotFoundException(
-        `group not found by this name or id${idSchedule ? ' or idschedule' : ''}`,
-      );
+      throw new NotFoundException('group not found by this name or id');
     }
     return result;
   }
@@ -284,8 +337,10 @@ export class ScheduleController {
       },
     },
   })
-  async getTeachers() {
-    const result = await this.scheduleService.getTeachersBySchedule(0);
+  @ApiSemesterQuery()
+  async getTeachers(@Query() query: SemesterQueryDto) {
+    const semesterId = await this.getPublicSemesterId(query);
+    const result = await this.scheduleService.getTeachersBySchedule(semesterId);
 
     if (!result) {
       throw new NotFoundException('teachers not found for current shedule');
@@ -316,8 +371,16 @@ export class ScheduleController {
       },
     },
   })
-  async getByTeacher(@Param('teacherId', ParseIntPipe) teacherId: number) {
-    const result = await this.scheduleService.getByTeacher(teacherId);
+  @ApiSemesterQuery()
+  async getByTeacher(
+    @Param('teacherId', ParseIntPipe) teacherId: number,
+    @Query() query: SemesterQueryDto,
+  ) {
+    const semesterId = await this.getPublicSemesterId(query);
+    const result = await this.scheduleService.getByTeacher(
+      teacherId,
+      semesterId,
+    );
 
     if (!result) {
       throw new NotFoundException('teacher not found by this name or id');
@@ -355,8 +418,11 @@ export class ScheduleController {
       },
     },
   })
-  async getAudiences() {
-    const result = await this.scheduleService.getAudiencesBySchedule(0);
+  @ApiSemesterQuery()
+  async getAudiences(@Query() query: SemesterQueryDto) {
+    const semesterId = await this.getPublicSemesterId(query);
+    const result =
+      await this.scheduleService.getAudiencesBySchedule(semesterId);
 
     if (!result) {
       throw new NotFoundException('audience not found for current shedule');
@@ -367,12 +433,7 @@ export class ScheduleController {
   @Get('audience/:audienceIdOrName')
   @Version('1')
   @ApiOperation({ summary: 'Вернуть расписание для выбранной аудитории' })
-  @ApiQuery({
-    name: 'idschedule',
-    description: '',
-    type: Number,
-    required: false,
-  })
+  @ApiSemesterQuery()
   @ApiResponse({
     status: 200,
     schema: {
@@ -395,17 +456,15 @@ export class ScheduleController {
   })
   async getByAudience(
     @Param('audienceIdOrName') audienceIdOrName: string,
-    @Query('idschedule', new DefaultValuePipe(0), ParseIntPipe)
-    idSchedule: number,
+    @Query() query: SemesterQueryDto,
   ) {
+    const semesterId = await this.getPublicSemesterId(query);
     const data = await this.scheduleService.getByAudience(
       audienceIdOrName,
-      idSchedule,
+      semesterId,
     );
     if (!data) {
-      throw new NotFoundException(
-        `audience not found by this name or id${idSchedule ? ' or idschedule' : ''}`,
-      );
+      throw new NotFoundException('audience not found by this name or id');
     }
     return data;
   }
@@ -431,6 +490,7 @@ export class ScheduleController {
   @RateLimitHeavyRead()
   @NeedAuth()
   @OAuth2RequiredScope('schedule', ['read'])
+  @ApiResponse({ status: 200, type: [ScheduleSemesterDto] })
   async getScheduleSemesters() {
     const result = await this.scheduleService.getScheduleSemesters();
 

@@ -19,6 +19,7 @@ import {
   LessonDto,
   OneDayDto,
   OneWeekDto,
+  ScheduleSemesterDto,
 } from './dto';
 import {
   Auditory,
@@ -828,11 +829,49 @@ export class ScheduleService {
     });
   }
 
-  async getScheduleSemesters() {
-    return await this.scheduleSemesterRepository.find({
-      relations: ['semesterName', 'academicYear'],
-      // take: 10,
+  /**
+   * Преобразует публичный идентификатор семестра в доступный для чтения идентификатор.
+   * Неопределённый семестр (0) сохраняет прежнее поведение: выбираются все опубликованные.
+   */
+  async resolvePublicSemesterId(semesterId: number): Promise<number | null> {
+    if (semesterId === 0) {
+      return 0;
+    }
+
+    const semester = await this.scheduleSemesterRepository.findOneBy({
+      id: semesterId,
+      fl_pub: 1,
     });
+
+    return semester?.id ?? null;
+  }
+
+  async getScheduleSemesters(): Promise<ScheduleSemesterDto[]> {
+    const semesters = await this.scheduleSemesterRepository.find({
+      where: { fl_pub: 1 },
+      relations: ['semesterName', 'academicYear'],
+      order: {
+        academicYearId: 'DESC',
+        semesterNameId: 'ASC',
+        id: 'DESC',
+      },
+    });
+
+    return semesters.map((semester) => ({
+      id: semester.id,
+      academicYear: {
+        id: semester.academicYearId ?? null,
+        name: semester.academicYear?.name ?? null,
+      },
+      semester: {
+        id: semester.semesterNameId ?? null,
+        name: semester.semesterName?.nameperr ?? null,
+        number: semester.semesterName?.sem ?? null,
+      },
+      startsAt: semester.nned_data0 ?? null,
+      endsAt: semester.nned_data1 ?? null,
+      isPublished: semester.fl_pub > 0,
+    }));
   }
 
   private createWeek(

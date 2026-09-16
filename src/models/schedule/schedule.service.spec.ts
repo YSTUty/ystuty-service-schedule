@@ -8,6 +8,10 @@ describe('ScheduleService', () => {
     set: jest.fn(),
     ttl: jest.fn(),
   };
+  const scheduleSemesterRepository = {
+    find: jest.fn(),
+    findOneBy: jest.fn(),
+  };
 
   const createService = () =>
     new ScheduleService(
@@ -16,7 +20,7 @@ describe('ScheduleService', () => {
       {} as any,
       {} as any,
       {} as any,
-      {} as any,
+      scheduleSemesterRepository as any,
       { redis } as any,
     );
 
@@ -69,6 +73,58 @@ describe('ScheduleService', () => {
         ttlSeconds: 417,
       },
       count: 42,
+    });
+  });
+
+  it('accepts only published explicitly selected semesters', async () => {
+    const service = createService();
+    scheduleSemesterRepository.findOneBy.mockResolvedValue({ id: 123 });
+
+    await expect(service.resolvePublicSemesterId(123)).resolves.toBe(123);
+    await expect(service.resolvePublicSemesterId(0)).resolves.toBe(0);
+
+    expect(scheduleSemesterRepository.findOneBy).toHaveBeenCalledWith({
+      id: 123,
+      fl_pub: 1,
+    });
+    expect(scheduleSemesterRepository.findOneBy).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides unpublished semesters from the public semester list', async () => {
+    const service = createService();
+    const startsAt = new Date('2025-09-01T00:00:00.000Z');
+    const endsAt = new Date('2025-12-31T00:00:00.000Z');
+    scheduleSemesterRepository.find.mockResolvedValue([
+      {
+        id: 123,
+        academicYearId: 2025,
+        academicYear: { name: '2025/2026' },
+        semesterNameId: 1,
+        semesterName: { nameperr: 'Осенний семестр', sem: 1 },
+        nned_data0: startsAt,
+        nned_data1: endsAt,
+        fl_pub: 1,
+      },
+    ]);
+
+    await expect(service.getScheduleSemesters()).resolves.toEqual([
+      {
+        id: 123,
+        academicYear: { id: 2025, name: '2025/2026' },
+        semester: { id: 1, name: 'Осенний семестр', number: 1 },
+        startsAt,
+        endsAt,
+        isPublished: true,
+      },
+    ]);
+    expect(scheduleSemesterRepository.find).toHaveBeenCalledWith({
+      where: { fl_pub: 1 },
+      relations: ['semesterName', 'academicYear'],
+      order: {
+        academicYearId: 'DESC',
+        semesterNameId: 'ASC',
+        id: 'DESC',
+      },
     });
   });
 });
