@@ -38,6 +38,18 @@ interface IExamDay {
   note?: string;
 }
 
+export interface CacheMetadata {
+  /** Данные этого ответа были прочитаны из Redis-кэша. */
+  isCached: boolean;
+  /** Оставшееся время жизни Redis-кэша в секундах. */
+  ttlSeconds: number | null;
+}
+
+interface CachedValue<T> {
+  value: T;
+  ttlSeconds: number | null;
+}
+
 @Injectable()
 export class ScheduleService {
   private readonly logger = new Logger(ScheduleService.name);
@@ -83,33 +95,70 @@ export class ScheduleService {
     }
   }
 
+  /**
+   * Читает значение и оставшееся время жизни Redis-кэша одним интерфейсом.
+   */
+  private async readCache<T>(cacheKey: string): Promise<CachedValue<T> | null> {
+    try {
+      const [cachedData, ttlSeconds] = await Promise.all([
+        this.redisService.redis.get(cacheKey),
+        this.redisService.redis.ttl(cacheKey),
+      ]);
+      if (!cachedData) {
+        return null;
+      }
+
+      return {
+        value: JSON.parse(cachedData) as T,
+        ttlSeconds: ttlSeconds >= 0 ? ttlSeconds : null,
+      };
+    } catch (error) {
+      const cacheError =
+        error instanceof Error ? error : new Error(String(error));
+      this.logger.error(
+        `Redis cache read failed: ${cacheError.message}`,
+        cacheError.stack,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Сохраняет обратную совместимость с isCache и добавляет точные метаданные.
+   */
+  private withCacheMetadata<T extends object>(
+    value: T,
+    isCached: boolean,
+    ttlSeconds: number | null = null,
+  ): T & { isCache: boolean; cache: CacheMetadata } {
+    return {
+      ...value,
+      isCache: isCached,
+      cache: {
+        isCached,
+        ttlSeconds: isCached ? ttlSeconds : null,
+      },
+    };
+  }
+
   async getCount(
     type: 'institute' | 'group' | 'teachers' | 'audiences',
     idSchedule: number = 0,
   ) {
     const cacheKey = `count:${idSchedule}:${type}`;
-    let response: {
-      isCache: boolean;
-      count: number;
-    } = {
-      isCache: undefined,
-      count: null,
-    };
     if (this.allowCaching) {
-      try {
-        const cachedData = await this.redisService.redis.get(cacheKey);
-        if (cachedData) {
-          response = JSON.parse(cachedData);
-          return { isCache: true, count: response.count || null };
-        }
-      } catch (err) {
-        this.logger.error(err);
+      const cached = await this.readCache<{ count: number }>(cacheKey);
+      if (cached) {
+        return this.withCacheMetadata(
+          { count: cached.value.count || null },
+          true,
+          cached.ttlSeconds,
+        );
       }
     }
 
     let info: {
       items: any[];
-      isCache: boolean;
       count?: number;
     } = null;
     if (type === 'group' || type === 'institute') {
@@ -121,10 +170,9 @@ export class ScheduleService {
     }
 
     if (!info) {
-      return response;
+      return this.withCacheMetadata({ count: null }, false);
     }
-    response = {
-      isCache: info.isCache,
+    const response = {
       count:
         type === 'group'
           ? info.items.flatMap((e) => e.groups).length
@@ -134,23 +182,18 @@ export class ScheduleService {
     if (this.allowCaching && response) {
       await this.writeCache(cacheKey, response, 60 * 10);
     }
-    return response;
+    return this.withCacheMetadata(response, false);
   }
 
   async getGroups(idSchedule: number, additional = true) {
     const cacheKey = `groups:${idSchedule}:additional-${additional}`;
     if (this.allowCaching) {
-      try {
-        const cachedData = await this.redisService.redis.get(cacheKey);
-        if (cachedData) {
-          const response = JSON.parse(cachedData) as {
-            name: string;
-            items: InstituteGroupsDto[];
-          };
-          return { isCache: true, ...response };
-        }
-      } catch (err) {
-        this.logger.error(err);
+      const cached = await this.readCache<{
+        name: string;
+        items: InstituteGroupsDto[];
+      }>(cacheKey);
+      if (cached) {
+        return this.withCacheMetadata(cached.value, true, cached.ttlSeconds);
       }
     }
 
@@ -266,7 +309,6 @@ export class ScheduleService {
     }
 
     const response = {
-      isCache: undefined as boolean,
       /** @deprecated */
       name: defaultNamerasp,
       items,
@@ -275,20 +317,19 @@ export class ScheduleService {
       await this.writeCache(cacheKey, response, 60 * 10);
     }
 
-    return response;
+    return this.withCacheMetadata(response, false);
   }
 
   async getByGroup(groupIdOrName: number | string, idSchedule: number = 0) {
     const cacheKey = `byGroup:${idSchedule}:${String(groupIdOrName).toLowerCase()}`;
     if (this.allowCaching) {
-      try {
-        const cachedData = await this.redisService.redis.get(cacheKey);
-        if (cachedData) {
-          const items = JSON.parse(cachedData) as OneWeekDto[];
-          return { isCache: true, items };
-        }
-      } catch (err) {
-        this.logger.error(err);
+      const cached = await this.readCache<OneWeekDto[]>(cacheKey);
+      if (cached) {
+        return this.withCacheMetadata(
+          { items: cached.value },
+          true,
+          cached.ttlSeconds,
+        );
       }
     }
 
@@ -357,7 +398,7 @@ export class ScheduleService {
       await this.writeCache(cacheKey, items, 60 * 5);
     }
 
-    return { isCache: false, items };
+    return this.withCacheMetadata({ items }, false);
   }
 
   async getByGroupAsWeek(
@@ -366,14 +407,13 @@ export class ScheduleService {
   ) {
     const cacheKey = `byGroupAsWeek:${idSchedule}:${String(groupIdOrName).toLowerCase()}`;
     if (this.allowCaching) {
-      try {
-        const cachedData = await this.redisService.redis.get(cacheKey);
-        if (cachedData) {
-          const items = JSON.parse(cachedData) as OneWeekDto[];
-          return { isCache: true, items };
-        }
-      } catch (err) {
-        this.logger.error(err);
+      const cached = await this.readCache<OneWeekDto[]>(cacheKey);
+      if (cached) {
+        return this.withCacheMetadata(
+          { items: cached.value },
+          true,
+          cached.ttlSeconds,
+        );
       }
     }
 
@@ -454,27 +494,21 @@ export class ScheduleService {
       await this.writeCache(cacheKey, items, 60 * 5);
     }
 
-    return { isCache: false, items };
+    return this.withCacheMetadata({ items }, false);
   }
 
   async getByTeacher(teacherId: number, idSchedule: number = 0) {
     const cacheKey = `byTeacher:${idSchedule}:${teacherId}`;
     if (this.allowCaching) {
-      try {
-        const cachedData = await this.redisService.redis.get(cacheKey);
-        if (cachedData) {
-          const response = JSON.parse(cachedData) as {
-            isCache: boolean;
-            teacher: {
-              name: string;
-              id: number;
-            };
-            items: OneWeekDto[];
-          };
-          return { isCache: true, ...response };
-        }
-      } catch (err) {
-        this.logger.error(err);
+      const cached = await this.readCache<{
+        teacher: {
+          name: string;
+          id: number;
+        };
+        items: OneWeekDto[];
+      }>(cacheKey);
+      if (cached) {
+        return this.withCacheMetadata(cached.value, true, cached.ttlSeconds);
       }
     }
 
@@ -540,12 +574,12 @@ export class ScheduleService {
       name: teacherInfo?.fio1 || '',
     };
 
-    const response = { isCache: undefined as boolean, teacher, items };
+    const response = { teacher, items };
     if (this.allowCaching) {
       await this.writeCache(cacheKey, response, 60 * 5);
     }
 
-    return response;
+    return this.withCacheMetadata(response, false);
   }
 
   async getByAudience(
@@ -554,14 +588,13 @@ export class ScheduleService {
   ) {
     const cacheKey = `byAudience:${idSchedule}:${String(audienceIdOrName).toLowerCase()}`;
     if (this.allowCaching) {
-      try {
-        const cachedData = await this.redisService.redis.get(cacheKey);
-        if (cachedData) {
-          const items = JSON.parse(cachedData) as OneWeekDto[];
-          return { isCache: true, items };
-        }
-      } catch (err) {
-        this.logger.error(err);
+      const cached = await this.readCache<OneWeekDto[]>(cacheKey);
+      if (cached) {
+        return this.withCacheMetadata(
+          { items: cached.value },
+          true,
+          cached.ttlSeconds,
+        );
       }
     }
 
@@ -636,23 +669,24 @@ export class ScheduleService {
       await this.writeCache(cacheKey, items, 60 * 5);
     }
 
-    return { isCache: false, items };
+    return this.withCacheMetadata({ items }, false);
   }
 
   async getTeachersBySchedule(idSchedule: number) {
     const cacheKey = `teachers_schedule:${idSchedule}`;
     if (this.allowCaching) {
-      try {
-        const cachedData = await this.redisService.redis.get(cacheKey);
-        if (cachedData) {
-          const items = JSON.parse(cachedData) as {
-            id: number;
-            name: string;
-          }[];
-          return { isCache: true, items, count: items.length };
-        }
-      } catch (err) {
-        this.logger.error(err);
+      const cached = await this.readCache<
+        {
+          id: number;
+          name: string;
+        }[]
+      >(cacheKey);
+      if (cached) {
+        return this.withCacheMetadata(
+          { items: cached.value, count: cached.value.length },
+          true,
+          cached.ttlSeconds,
+        );
       }
     }
 
@@ -712,23 +746,24 @@ export class ScheduleService {
     if (this.allowCaching) {
       await this.writeCache(cacheKey, items, 60 * 5);
     }
-    return { isCache: false, items, count: items.length };
+    return this.withCacheMetadata({ items, count: items.length }, false);
   }
 
   async getAudiencesBySchedule(idSchedule: number) {
     const cacheKey = `audiences_schedule:${idSchedule}`;
     if (this.allowCaching) {
-      try {
-        const cachedData = await this.redisService.redis.get(cacheKey);
-        if (cachedData) {
-          const items = JSON.parse(cachedData) as {
-            id: number;
-            name: string;
-          }[];
-          return { isCache: true, items, count: items.length };
-        }
-      } catch (err) {
-        this.logger.error(err);
+      const cached = await this.readCache<
+        {
+          id: number;
+          name: string;
+        }[]
+      >(cacheKey);
+      if (cached) {
+        return this.withCacheMetadata(
+          { items: cached.value, count: cached.value.length },
+          true,
+          cached.ttlSeconds,
+        );
       }
     }
 
@@ -784,7 +819,7 @@ export class ScheduleService {
     if (this.allowCaching) {
       await this.writeCache(cacheKey, items, 60 * 5);
     }
-    return { isCache: false, items, count: items.length };
+    return this.withCacheMetadata({ items, count: items.length }, false);
   }
 
   async getAudiences() {

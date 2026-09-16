@@ -60,13 +60,17 @@ export class ScheduleController {
     const groups = await this.scheduleService.getCount('group');
     const teachers = await this.scheduleService.getCount('teachers');
     const audiences = await this.scheduleService.getCount('audiences');
+    const results = [institutes, groups, teachers, audiences];
+    const isFullyCached = results.every((result) => result.cache.isCached);
 
     return {
-      isCache:
-        institutes.isCache ||
-        groups.isCache ||
-        teachers.isCache ||
-        audiences.isCache,
+      isCache: results.some((result) => result.isCache),
+      cache: {
+        isCached: isFullyCached,
+        ttlSeconds: isFullyCached
+          ? Math.min(...results.map((result) => result.cache.ttlSeconds))
+          : null,
+      },
       institutes: institutes.count,
       groups: groups.count,
       teachers: teachers.count,
