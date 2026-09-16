@@ -41,13 +41,14 @@
     "release:patch": "release-it patch"
   },
   "dependencies": {
+    "@nest-lab/throttler-storage-redis": "^1.2.0",
     "@nestjs/common": "^11.1.19",
     "@nestjs/core": "^11.1.19",
     "@nestjs/microservices": "^11.1.19",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.19",
     "@nestjs/swagger": "^11.2.3",
-    "@nestjs/throttler": "^6.4.0",
+    "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.3",
     "@scalar/nestjs-api-reference": "^1.2.18",
     "class-transformer": "^0.5.1",

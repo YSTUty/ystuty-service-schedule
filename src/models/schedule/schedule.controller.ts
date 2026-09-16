@@ -19,9 +19,13 @@ import {
   ApiTags,
   getSchemaPath,
 } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
 
-import { NeedAuth, OAuth2RequiredScope } from '@my-common';
+import {
+  NeedAuth,
+  OAuth2RequiredScope,
+  RateLimitHeavyRead,
+  RateLimitPublicRead,
+} from '@my-common';
 import { WeekNumberType } from '@my-interfaces';
 
 import { GroupDetailDto, InstituteGroupsDto, OneWeekDto } from './dto';
@@ -72,7 +76,7 @@ export class ScheduleController {
 
   @Get('actual_groups')
   @Version('1')
-  @Throttle({ default: { limit: 4, ttl: 10e3 } })
+  @RateLimitPublicRead()
   @ApiOperation({ summary: 'Вернуть список актуальных групп по институтам' })
   @ApiResponse({
     status: 200,
@@ -226,7 +230,7 @@ export class ScheduleController {
     },
   })
   @ApiExtraModels(RaspGrWeekView)
-  @Throttle({ default: { limit: 5, ttl: 10e3 } })
+  @RateLimitPublicRead()
   @NeedAuth()
   @OAuth2RequiredScope('schedule', ['advanced'], ['read'])
   async getByGroupAsWeek(
@@ -405,7 +409,7 @@ export class ScheduleController {
   @Get('all_audiences')
   @Version('1')
   @ApiOperation({ summary: 'Вернуть список всех аудиторий' })
-  @Throttle({ default: { limit: 1, ttl: 2e3 } })
+  @RateLimitHeavyRead()
   @NeedAuth()
   @OAuth2RequiredScope('schedule', ['read'])
   async getAllAudiences() {
@@ -420,7 +424,7 @@ export class ScheduleController {
   @Get('all_semesters')
   @Version('1')
   @ApiOperation({ summary: 'Вернуть список всех семестров' })
-  @Throttle({ default: { limit: 1, ttl: 2e3 } })
+  @RateLimitHeavyRead()
   @NeedAuth()
   @OAuth2RequiredScope('schedule', ['read'])
   async getScheduleSemesters() {

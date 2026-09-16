@@ -2,7 +2,7 @@ import type { DataSourceOptions } from 'typeorm';
 
 import * as dotenv from 'dotenv';
 import * as dotenvExpand from 'dotenv-expand';
-import type { RedisOptions } from 'ioredis';
+import type * as Redis from 'ioredis';
 
 const config = dotenv.config();
 dotenvExpand.expand(config);
@@ -85,15 +85,29 @@ export function assertRequiredEnvironment(): void {
   }
 }
 
+/**
+ * Адреса reverse proxy, заголовкам которых можно доверять.
+ * Без настройки внешние адреса не берутся из X-Forwarded-For.
+ */
+export const TRUSTED_PROXY_IPS: string[] = (process.env.TRUSTED_PROXY_IPS ?? '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
+
 // * Redis
 export const REDIS_HOST: string = process.env.REDIS_HOST || 'redis';
 export const REDIS_PORT: number = +process.env.REDIS_PORT || 6379;
 export const REDIS_USER: string = process.env.REDIS_USER;
 export const REDIS_PASSWORD: string = process.env.REDIS_PASSWORD;
 export const REDIS_DATABASE: number = +process.env.REDIS_DATABASE || 0;
-export const REDIS_PREFIX: string =
-  process.env.REDIS_PREFIX ?? 'ystuty:service:schedule:';
-export const REDIS_CONFIG: RedisOptions = {
+export const REDIS_PREFIX: string = process.env.REDIS_PREFIX
+  ? process.env.REDIS_PREFIX.endsWith(':')
+    ? process.env.REDIS_PREFIX
+    : `${process.env.REDIS_PREFIX}:`
+  : 'ystuty:service:schedule:';
+
+export const REDIS_CONFIG: Required<Pick<Redis.RedisOptions, 'host' | 'port'>> &
+  Pick<Redis.RedisOptions, 'db' | 'username' | 'password' | 'keyPrefix'> = {
   host: REDIS_HOST,
   port: REDIS_PORT,
   db: REDIS_DATABASE,

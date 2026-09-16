@@ -1,10 +1,11 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiBearerAuth, ApiOAuth2 } from '@nestjs/swagger';
-import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import { SkipThrottle } from '@nestjs/throttler';
 
 import {
   NeedAuth,
   OAuth2RequiredScope,
+  RateLimitPrivateLookup,
   ReqAuth,
   ReqAuthType,
 } from '@my-common';
@@ -26,7 +27,7 @@ export class AppController {
   }
 
   @Get('getMyGroup')
-  @Throttle({ default: { limit: 1, ttl: 2e3 } })
+  @RateLimitPrivateLookup()
   @ApiBearerAuth() /* (http, Bearer) */
   @ApiOAuth2([]) /* (OAuth2, clientCredentials) */
   @NeedAuth()

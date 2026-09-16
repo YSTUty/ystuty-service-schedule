@@ -12,33 +12,60 @@ jest.mock('redlock', () => jest.fn());
 
 const redisConstructor = Redis as unknown as jest.Mock;
 const redlockConstructor = Redlock as unknown as jest.Mock;
-const redisClient = {
-  connect: jest.fn(),
-  on: jest.fn(),
-  status: 'wait',
-};
 const redlockClient = { on: jest.fn() };
 
 describe('RedisService', () => {
+  let redisClient: {
+    connect: jest.Mock;
+    on: jest.Mock;
+    status: string;
+  };
+  let redisThrottlerClient: {
+    connect: jest.Mock;
+    on: jest.Mock;
+    status: string;
+  };
+
   beforeEach(() => {
-    jest.clearAllMocks();
-    redisClient.status = 'wait';
-    redisConstructor.mockImplementation(() => redisClient);
-    redlockConstructor.mockImplementation(() => redlockClient);
+    redisClient = {
+      connect: jest.fn(),
+      on: jest.fn(),
+      status: 'wait',
+    };
+    redisThrottlerClient = {
+      connect: jest.fn(),
+      on: jest.fn(),
+      status: 'wait',
+    };
+    redisConstructor
+      .mockReset()
+      .mockImplementationOnce(() => redisClient)
+      .mockImplementationOnce(() => redisThrottlerClient);
+    redlockConstructor.mockReset().mockImplementation(() => redlockClient);
   });
 
-  it('connects the lazy Redis client during module initialization', async () => {
+  it('connects the lazy Redis clients during module initialization', async () => {
     const service = new RedisService();
 
     await service.onModuleInit();
 
-    expect(redisConstructor).toHaveBeenCalledWith(
+    expect(redisConstructor).toHaveBeenNthCalledWith(
+      1,
       expect.objectContaining({
         lazyConnect: true,
         maxRetriesPerRequest: 1,
       }),
     );
+    expect(redisConstructor).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        keyPrefix: expect.stringContaining('throttler:'),
+        lazyConnect: true,
+        maxRetriesPerRequest: 1,
+      }),
+    );
     expect(redisClient.connect).toHaveBeenCalledTimes(1);
+    expect(redisThrottlerClient.connect).toHaveBeenCalledTimes(1);
   });
 
   it('logs but suppresses the initial connection error', async () => {

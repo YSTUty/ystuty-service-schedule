@@ -32,7 +32,10 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // app.set('query parser', 'extended');
-  // app.set('trust proxy', true); // ?
+  if (xEnv.TRUSTED_PROXY_IPS.length) {
+    // Не доверяем X-Forwarded-* при прямых запросах из Docker-сети.
+    app.set('trust proxy', xEnv.TRUSTED_PROXY_IPS);
+  }
 
   // app.setGlobalPrefix('api');
   app.enableVersioning({
