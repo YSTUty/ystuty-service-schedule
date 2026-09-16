@@ -1,5 +1,30 @@
 import { LessonFlags } from '@my-interfaces';
 
+export interface LessonTypeAnalysisInput {
+  lessonName?: string;
+  lessonTypeShortName?: string;
+  additionalInfo?: string;
+}
+
+export interface LessonTypeAnalysis {
+  lessonName?: string;
+  subInfo?: string;
+  type: LessonFlags;
+}
+
+const LESSON_TYPE_INFO_REG_EXP = new RegExp(
+  '' +
+    '( ?(?<online>\\(онлайн\\)))?' +
+    '(,? ?(\\+ ?)?(?<types2>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
+    '(,? ?(\\+ ?)?(?<types3>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
+    '(,? ?(\\+ ?)?(?<types4>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
+    '(,? ?(\\+ ?)?(?<types5>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
+    '(,? ?\\(\\+(?<types6>teams|лекция|лек\\.?|лаб\\.?|пр\\.?з?\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.?зач\\.?|экз\\.?)\\))?' +
+    ',?\\+?' +
+    '( ?(?<subInfo>.*))?',
+  'i',
+);
+
 export const getLessonTypeStrArr = (type: LessonFlags) => {
   const types: string[] = [];
   if (type & LessonFlags.Lecture) types.push('Лек');
@@ -37,6 +62,74 @@ export const getLessonTypeFromStr = (type: string): LessonFlags => {
                 : type.includes('экз')
                   ? LessonFlags.Exam
                   : LessonFlags.Unsupported;
+};
+
+/**
+ * Преобразует сырые поля занятия в публичный тип и дополнительную информацию.
+ * Диагностика и выдача расписания используют один набор правил.
+ */
+export const analyzeLessonType = ({
+  lessonName: sourceLessonName,
+  lessonTypeShortName,
+  additionalInfo,
+}: LessonTypeAnalysisInput): LessonTypeAnalysis => {
+  let lessonName = sourceLessonName;
+  const typeGroups =
+    additionalInfo?.match(LESSON_TYPE_INFO_REG_EXP)?.groups || {};
+  let subInfo = typeGroups.subInfo;
+
+  let type: LessonFlags = [
+    lessonTypeShortName || '',
+    typeGroups.types2 || '',
+    typeGroups.types3 || '',
+    typeGroups.types4 || '',
+    typeGroups.types5 || '',
+    typeGroups.types6 || '',
+  ]
+    .filter(Boolean)
+    .flatMap((value) => value.split(','))
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+    .reduce(
+      (previous, sourceType) => (previous |= getLessonTypeFromStr(sourceType)),
+      LessonFlags.None,
+    );
+
+  const subInfoLower = subInfo?.toLowerCase();
+  if (subInfoLower) {
+    const libraryStrings = [subInfoLower, lessonName?.toLowerCase()].filter(
+      Boolean,
+    );
+    if (
+      libraryStrings.some(
+        (value) =>
+          value.includes('библ.') ||
+          value.includes('библиот') ||
+          value.includes('книговыдача'),
+      )
+    ) {
+      type |= LessonFlags.Library;
+    }
+  }
+
+  if (type === LessonFlags.None) {
+    if (lessonName?.length > 0) {
+      // TODO: add more combinations
+      if (lessonName.includes('исследовательская работа')) {
+        type |= LessonFlags.ResearchWork;
+      }
+    } else if (subInfo?.length > 0) {
+      // TODO: add more combinations
+      lessonName = subInfo;
+      subInfo = undefined;
+      type |= LessonFlags.Unsupported;
+    }
+    if (type === LessonFlags.None) {
+      type |= LessonFlags.Unsupported;
+    }
+  }
+
+  return { lessonName, subInfo, type };
 };
 
 export const getWeekNumber = (date: Date = new Date()) => {

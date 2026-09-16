@@ -5,7 +5,7 @@ import { Repository } from 'typeorm';
 import * as moment from 'moment';
 
 import {
-  getLessonTypeFromStr,
+  analyzeLessonType,
   getWeekNumber,
   getWeekOffsetByYear,
 } from '@my-common';
@@ -1004,72 +1004,13 @@ export class ScheduleService {
 
       if (isShort) timeRange += ' [SHORT]';
 
-      const typeRegExp = new RegExp(
-        '' +
-          '( ?(?<online>\\(онлайн\\)))?' +
-          '(,? ?(\\+ ?)?(?<types2>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
-          '(,? ?(\\+ ?)?(?<types3>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
-          '(,? ?(\\+ ?)?(?<types4>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
-          '(,? ?(\\+ ?)?(?<types5>teams|лекция|лек\\.|лаб\\.|пр\\.з\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.зач\\.?|экз\\.?))?' +
-          '(,? ?\\(\\+(?<types6>teams|лекция|лек\\.?|лаб\\.?|пр\\.?з?\\.?|кп\\.?|конс\\.?|зач\\.?|диф\\.?зач\\.?|экз\\.?)\\))?' +
-          ',?\\+?' +
-          '( ?(?<subInfo>.*))?',
-        'i',
-      );
-      const typeGroups = additionalInfo.match(typeRegExp).groups || {};
-      // const isOnline = !!typeGroups.online;
-      let subInfo = typeGroups.subInfo;
-
-      let type: LessonFlags = [
-        lessonTypeShortName || '',
-        typeGroups.types2 || '',
-        typeGroups.types3 || '',
-        typeGroups.types4 || '',
-        typeGroups.types5 || '',
-        typeGroups.types6 || '',
-      ]
-        .filter(Boolean)
-        .flatMap((e) => e.split(','))
-        .map((e) => e.trim().toLowerCase())
-        .filter(Boolean)
-        .reduce(
-          (prev, type) => (prev |= getLessonTypeFromStr(type)),
-          LessonFlags.None,
-        );
-
-      const subInfoLower = subInfo?.toLowerCase();
-      if (subInfoLower) {
-        let libraryStrings = [subInfoLower, lessonName?.toLowerCase()].filter(
-          Boolean,
-        );
-        if (
-          libraryStrings.some(
-            (str) =>
-              str.includes('библ.') ||
-              str.includes('библиот') ||
-              str.includes('книговыдача'),
-          )
-        ) {
-          type |= LessonFlags.Library;
-        }
-      }
-
-      if (type === LessonFlags.None) {
-        if (lessonName?.length > 0) {
-          // TODO: add more combinations
-          if (lessonName.includes('исследовательская работа')) {
-            type |= LessonFlags.ResearchWork;
-          }
-        } else if (subInfo?.length > 0) {
-          // TODO: add more combinations
-          lessonName = subInfo;
-          subInfo = undefined;
-          type |= LessonFlags.Unsupported;
-        }
-        if (type === LessonFlags.None) {
-          type |= LessonFlags.Unsupported;
-        }
-      }
+      const lessonType = analyzeLessonType({
+        lessonName,
+        lessonTypeShortName,
+        additionalInfo,
+      });
+      lessonName = lessonType.lessonName;
+      const { subInfo, type } = lessonType;
 
       const lesson = new LessonDto({
         trainingId,
