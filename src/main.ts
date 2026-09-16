@@ -27,6 +27,8 @@ async function bootstrap() {
     'NestJS',
   );
 
+  xEnv.assertRequiredEnvironment();
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // app.set('query parser', 'extended');
@@ -185,7 +187,7 @@ async function bootstrap() {
 }
 
 const logger = new Logger('GlobalErrorHandler');
-process.on('uncaughtException', (error: Error, origin: string) => {
+process.on('uncaughtException', (error: Error) => {
   logger.error(`Uncaught Exception: ${error.message}`, error.stack);
 });
 process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {

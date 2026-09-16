@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
+
+import * as xEnv from '@my-environment';
 
 import { OAuth2AccessTokenGuard, ThrottlerBehindProxyGuard } from '@my-common';
 
@@ -24,8 +27,13 @@ OAuth2AccessTokenGuard.allowNoAuth = true;
     ]),
     RedisModule,
     OAuthServerModule,
-    ScheduleModule.register(),
-    CalendarModule.register(),
+    // Единственное подключение к БД: сущности регистрируются feature-модулями.
+    TypeOrmModule.forRoot({
+      ...xEnv.TYPEORM_CONFIG,
+      autoLoadEntities: true,
+    }),
+    ScheduleModule,
+    CalendarModule,
   ],
   controllers: [AppController],
   providers: [

@@ -76,6 +76,15 @@ export const TYPEORM_CONFIG = {
   schema: process.env.TYPEORM_SCHEMA,
 };
 
+/**
+ * Проверяет обязательные параметры до создания Nest-приложения.
+ */
+export function assertRequiredEnvironment(): void {
+  if (!TYPEORM_CONFIG.host) {
+    throw new Error('TYPEORM_HOST must be configured');
+  }
+}
+
 // * Redis
 export const REDIS_HOST: string = process.env.REDIS_HOST || 'redis';
 export const REDIS_PORT: number = +process.env.REDIS_PORT || 6379;
