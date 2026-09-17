@@ -1,5 +1,3 @@
-import { LessonFlags } from '@my-interfaces';
-
 import { ScheduleLessonTypeDiagnosticsService } from './schedule-lesson-type-diagnostics.service';
 
 describe('ScheduleLessonTypeDiagnosticsService', () => {
@@ -22,6 +20,7 @@ describe('ScheduleLessonTypeDiagnosticsService', () => {
     new ScheduleLessonTypeDiagnosticsService(scheduleViewRepository as any);
 
   beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-17T12:00:00.000Z'));
     jest.clearAllMocks();
     for (const method of [
       queryBuilder.innerJoin,
@@ -36,6 +35,10 @@ describe('ScheduleLessonTypeDiagnosticsService', () => {
       method.mockReturnValue(queryBuilder);
     }
     scheduleViewRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('aggregates untyped formats and keeps one exact source sample', async () => {
@@ -102,40 +105,30 @@ describe('ScheduleLessonTypeDiagnosticsService', () => {
     expect(result.summary).toEqual({
       untypedRows: 2,
       untypedFormats: 2,
-      unsupportedRows: 2,
-      unsupportedFormats: 2,
+      unsupportedRows: 1,
+      unsupportedFormats: 1,
     });
-    expect(result.formats).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          raw: {
-            lessonName: 'Администрирование информационных систем (ИСТ)',
-            lessonTypeName: null,
-            lessonTypeShortName: null,
-            additionalInfo: 'Тензор',
-          },
-          normalized: expect.objectContaining({
-            flags: LessonFlags.Unsupported,
-            labels: ['N/A'],
-            isUnsupported: true,
-          }),
-          groupsCount: 1,
-          sample: expect.objectContaining({
-            semesterId: 123,
-            group: { id: 1, name: 'ЦИС-36' },
-            institute: { id: 10, name: 'Институт цифровых систем' },
-            isDistant: true,
-          }),
+    expect(result.year).toBe(2026);
+    expect(result.dateRange).toEqual({
+      from: '2026-01-01',
+      to: '2027-01-01',
+    });
+    expect(result.formats).toEqual([
+      expect.objectContaining({
+        normalized: expect.objectContaining({
+          lessonName: 'Ученый совет',
+          isUnsupported: true,
         }),
-        expect.objectContaining({
-          normalized: expect.objectContaining({
-            lessonName: 'Ученый совет',
-            isUnsupported: true,
-          }),
-        }),
-      ]),
-    );
+      }),
+    ]);
     expect(queryBuilder.andWhere).toHaveBeenCalledWith('n.fl_pub > 0');
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'r.datz >= :yearStart AND r.datz < :nextYearStart',
+      {
+        yearStart: '2026-01-01',
+        nextYearStart: '2027-01-01',
+      },
+    );
     expect(queryBuilder.andWhere).toHaveBeenCalledWith(
       "(r.abrwz IS NULL OR LTRIM(RTRIM(r.abrwz)) = '')",
     );

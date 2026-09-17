@@ -25,6 +25,23 @@ const LESSON_TYPE_INFO_REG_EXP = new RegExp(
   'i',
 );
 
+/**
+ * Подтверждённые названия событий, для которых источник не указывает abrwz.
+ */
+const EVENT_LESSON_REG_EXP = [
+  /^тренинги?(?:\s.*|$)/i,
+  /^встреча с директором$/i,
+  /^учебн(?:ая|\.?)\s*встреча.*$/i,
+  /^олимпиада.*$/i,
+  /^воспитательная деят-ть$/i,
+  /^социомониторинг$/i,
+  /^адаптационная перв$/i,
+  /^первокурсники$/i,
+  /^нед пром яо$/i,
+  /^проектный семинар$/i,
+  /^кружок сно$/i,
+];
+
 export const getLessonTypeStrArr = (type: LessonFlags) => {
   const types: string[] = [];
   if (type & LessonFlags.Lecture) types.push('Лек');
@@ -38,8 +55,16 @@ export const getLessonTypeStrArr = (type: LessonFlags) => {
   if (type & LessonFlags.Library) types.push('Библиотека');
   if (type & LessonFlags.ResearchWork) types.push('НИР');
   if (type & LessonFlags.OrganizationalMeeting) types.push('Орг. собрание');
+  if (type & LessonFlags.Practice) types.push('Практика');
+  if (type & LessonFlags.Event) types.push('Событие');
+  if (type & LessonFlags.MilitaryTraining) types.push('ВУЦ');
+  if (type & LessonFlags.PhysicalTraining) types.push('Физ. культура');
+  if (type & LessonFlags.Elective) types.push('Факультатив');
+  if (type & LessonFlags.External) types.push('Внешнее занятие');
+  if (type & LessonFlags.Tenzor) types.push('Тензор');
+  if (type & LessonFlags.School21) types.push('Школа 21');
   if (type & LessonFlags.Unsupported) types.push('N/A');
-  if (type & LessonFlags.None) types.push('???');
+  if (type === LessonFlags.None) types.push('???');
   return types;
 };
 
@@ -62,6 +87,67 @@ export const getLessonTypeFromStr = (type: string): LessonFlags => {
                 : type.includes('экз')
                   ? LessonFlags.Exam
                   : LessonFlags.Unsupported;
+};
+
+/**
+ * Определяет специальные занятия и события, у которых источник не заполнил
+ * стандартное сокращение типа (`abrwz`).
+ */
+const getLessonTypeFromContent = (
+  ...values: Array<string | undefined>
+): LessonFlags => {
+  const sourceTexts = values
+    .filter(Boolean)
+    .map((value) => value.trim().toLowerCase());
+  const hasText = (pattern: string | RegExp) =>
+    sourceTexts.some((value) =>
+      typeof pattern === 'string'
+        ? value.includes(pattern)
+        : pattern.test(value),
+    );
+
+  let type = LessonFlags.None;
+
+  if (hasText('библ.') || hasText('библиот') || hasText('книговыдача')) {
+    type |= LessonFlags.Library;
+  }
+  if (
+    hasText('исследовательская работа') ||
+    hasText('научно-исследовательский семинар') ||
+    hasText('научно-исслед семинар')
+  ) {
+    type |= LessonFlags.ResearchWork;
+  }
+  if (hasText(/^вуц$/i) || hasText('военный учебный центр')) {
+    type |= LessonFlags.MilitaryTraining;
+  }
+  if (
+    hasText(
+      /^(прикладная\s+)?физическая\s+культура(?:\s+и\s+спорт)?$|^физ-?ра$|^физкультура$/i,
+    )
+  ) {
+    type |= LessonFlags.PhysicalTraining;
+  }
+  if (hasText(/^(практика|производств\.\s*прак)$/i)) {
+    type |= LessonFlags.Practice;
+  }
+  if (hasText(/^факультатив$/i)) {
+    type |= LessonFlags.Elective;
+  }
+  if (hasText('тензор')) {
+    type |= LessonFlags.External | LessonFlags.Tenzor;
+  }
+  if (hasText('школа 21')) {
+    type |= LessonFlags.External | LessonFlags.School21;
+  }
+  if (hasText(/^орг\.\s*собрание$/i) || hasText(/^собрание.*$/i)) {
+    type |= LessonFlags.OrganizationalMeeting;
+  }
+  if (EVENT_LESSON_REG_EXP.some(hasText)) {
+    type |= LessonFlags.Event;
+  }
+
+  return type;
 };
 
 /**
@@ -95,30 +181,34 @@ export const analyzeLessonType = ({
       LessonFlags.None,
     );
 
-  const subInfoLower = subInfo?.toLowerCase();
-  if (subInfoLower) {
-    const libraryStrings = [subInfoLower, lessonName?.toLowerCase()].filter(
-      Boolean,
-    );
-    if (
-      libraryStrings.some(
-        (value) =>
-          value.includes('библ.') ||
-          value.includes('библиот') ||
-          value.includes('книговыдача'),
-      )
-    ) {
-      type |= LessonFlags.Library;
-    }
+  // Используем исходное поле целиком: регулярное выражение может не извлечь
+  // subInfo из произвольного текста, но он всё ещё содержит полезный признак.
+  const contentType = getLessonTypeFromContent(
+    lessonName,
+    subInfo,
+    additionalInfo,
+  );
+  if (type === LessonFlags.None) {
+    type |= contentType;
+  } else if (
+    contentType &
+    (LessonFlags.Library |
+      LessonFlags.External |
+      LessonFlags.Tenzor |
+      LessonFlags.School21)
+  ) {
+    // Библиотека и внешние занятия остаются дополнительными признаками
+    // и для занятий с указанным стандартным типом.
+    type |=
+      contentType &
+      (LessonFlags.Library |
+        LessonFlags.External |
+        LessonFlags.Tenzor |
+        LessonFlags.School21);
   }
 
   if (type === LessonFlags.None) {
-    if (lessonName?.length > 0) {
-      // TODO: add more combinations
-      if (lessonName.includes('исследовательская работа')) {
-        type |= LessonFlags.ResearchWork;
-      }
-    } else if (subInfo?.length > 0) {
+    if (!lessonName?.length && subInfo?.length > 0) {
       // TODO: add more combinations
       lessonName = subInfo;
       subInfo = undefined;

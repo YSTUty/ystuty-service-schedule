@@ -56,6 +56,14 @@ export enum LessonFlags {
   ResearchWork = 1 << 10,
   OrganizationalMeeting = 1 << 11,
   Unsupported = 1 << 12,
+  Practice = 1 << 13,
+  Event = 1 << 14,
+  MilitaryTraining = 1 << 15,
+  PhysicalTraining = 1 << 16,
+  Elective = 1 << 17,
+  External = 1 << 18,
+  Tenzor = 1 << 20,
+  School21 = 1 << 21,
 }
 
 /**

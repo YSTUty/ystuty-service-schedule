@@ -73,6 +73,11 @@ interface LessonTypeFormatDiagnostics {
 }
 
 export interface ScheduleLessonTypeDiagnosticsReport {
+  year: number;
+  dateRange: {
+    from: string;
+    to: string;
+  };
   summary: {
     untypedRows: number;
     untypedFormats: number;
@@ -94,6 +99,9 @@ export class ScheduleLessonTypeDiagnosticsService {
   ) {}
 
   async getLessonTypeReport(): Promise<ScheduleLessonTypeDiagnosticsReport> {
+    const year = new Date().getFullYear();
+    const yearStart = `${year}-01-01`;
+    const nextYearStart = `${year + 1}-01-01`;
     const sourceFormats = (await this.scheduleViewRepository
       .createQueryBuilder('r')
       .innerJoin('raspz_nastr', 'n', 'n.idraspz = r.IDraspz')
@@ -106,6 +114,12 @@ export class ScheduleLessonTypeDiagnosticsService {
       .addSelect('MIN(r.IDr)', 'sampleEntryId')
       .where('r.childz = :childFlag', { childFlag: 0 })
       .andWhere('n.fl_pub > 0')
+      // Ограничиваем отчёт актуальным календарным годом, чтобы старые
+      // опубликованные семестры не влияли на диагностику новых форматов.
+      .andWhere('r.datz >= :yearStart AND r.datz < :nextYearStart', {
+        yearStart,
+        nextYearStart,
+      })
       .andWhere("(r.abrwz IS NULL OR LTRIM(RTRIM(r.abrwz)) = '')")
       .groupBy('r.namepredm')
       .addGroupBy('r.namewz')
@@ -198,6 +212,11 @@ export class ScheduleLessonTypeDiagnosticsService {
     );
 
     return {
+      year,
+      dateRange: {
+        from: yearStart,
+        to: nextYearStart,
+      },
       summary: {
         untypedRows: sourceFormats.reduce(
           (total, format) => total + Number(format.occurrences),
