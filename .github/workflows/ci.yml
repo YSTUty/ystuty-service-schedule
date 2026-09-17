@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    env:
+      HUSKY: 0
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Check types
+        run: yarn typecheck
+
+      - name: Build application
+        run: yarn build
+
+      - name: Run linter
+        run: yarn lint
+
+      - name: Run unit tests
+        env:
+          NODE_OPTIONS: --experimental-vm-modules
+        run: yarn test --runInBand
