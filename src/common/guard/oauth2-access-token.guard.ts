@@ -23,8 +23,8 @@ export class OAuth2AccessTokenGuard extends AuthGuard('oauth2-access-token') {
   }
 
   async canActivate(context: ExecutionContext) {
-    let needAuth = this.reflector.get(NEED_AUTH_KEY, context.getHandler());
-    let isPublic = this.reflector.get(IS_PUBLIC_KEY, context.getHandler());
+    const needAuth = this.reflector.get(NEED_AUTH_KEY, context.getHandler());
+    const isPublic = this.reflector.get(IS_PUBLIC_KEY, context.getHandler());
     const requiredScopesByHandler =
       this.reflector.get<string[]>(
         OAUTH2_REQUIRED_SCOPES,

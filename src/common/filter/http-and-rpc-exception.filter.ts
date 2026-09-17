@@ -38,7 +38,7 @@ export class HttpAndRpcExceptionFilter implements ExceptionFilter {
     let expResponse: string | Record<string, any> | null =
       httpException.getResponse() || null;
     let code = httpException.getStatus() || HttpStatus.INTERNAL_SERVER_ERROR;
-    let message: string | undefined = httpException.message || undefined;
+    const message: string | undefined = httpException.message || undefined;
 
     if (exception instanceof RpcException) {
       expResponse = exception.getError();

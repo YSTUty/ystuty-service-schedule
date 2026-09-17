@@ -89,7 +89,7 @@ export class CalendarService {
     for (const lesson of schedule.items.flatMap((e) =>
       e.days.flatMap((e) => e.lessons),
     )) {
-      const event = this.createLessonEvent(calendar, lesson)
+      this.createLessonEvent(calendar, lesson)
         .summary(
           `${lesson.isDistant ? '(🖥) ' : ''}[${getLessonTypeStrArr(
             lesson.type,

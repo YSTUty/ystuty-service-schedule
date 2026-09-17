@@ -84,8 +84,7 @@ export class ThrottlerBehindProxyGuard extends ThrottlerGuard {
     context: ExecutionContext,
     throttlerLimitDetail: ThrottlerLimitDetail,
   ): Promise<void> {
-    const { limit, totalHits, timeToExpire, timeToBlockExpire } =
-      throttlerLimitDetail;
+    const { limit, totalHits, timeToExpire } = throttlerLimitDetail;
     const { res } = this.getRequestResponse(context);
 
     // !TODO need getting correct throttler options

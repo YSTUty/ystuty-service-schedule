@@ -472,7 +472,7 @@ export class ScheduleService {
           .orderBy('r.npar')
           .addOrderBy('r.idz');
 
-        let week = await qb.disableEscaping().getMany();
+        const week = await qb.disableEscaping().getMany();
 
         items.push({
           weekType: ndow,
@@ -793,7 +793,7 @@ export class ScheduleService {
       qb.andWhere('n.fl_pub > 0');
     }
 
-    let audiences: Map<number, string> = new Map();
+    const audiences: Map<number, string> = new Map();
     const raspz = (await qb.getRawMany()) as Partial<{
       nameaudi: string;
       audi: number;
@@ -878,7 +878,7 @@ export class ScheduleService {
     raspz: ScheduleView[],
     rType: 'group' | 'teacher' | 'audience',
   ) {
-    let parityOnWeekMap: Map<number, WeekParityType> = new Map();
+    const parityOnWeekMap: Map<number, WeekParityType> = new Map();
     const parityOnWeek = (trainingId: number): WeekParityType => {
       if (parityOnWeekMap.has(trainingId)) {
         return parityOnWeekMap.get(trainingId);
@@ -893,7 +893,7 @@ export class ScheduleService {
           }
         }
       }
-      let res =
+      const res =
         total === odd
           ? WeekParityType.ODD
           : odd === 0
@@ -905,13 +905,12 @@ export class ScheduleService {
 
     const weeks: OneWeekDto[] = [];
     for (const raw of raspz) {
-      let {
+      const {
         date,
         startAt,
         lessonNumber,
         weekNumber,
         timeInterval,
-        lessonName,
         auditoryName_1,
         auditoryName_2,
         teacherName_1,
@@ -929,6 +928,7 @@ export class ScheduleService {
         trainingId,
         lectureFlag,
       } = raw;
+      let { lessonName } = raw;
 
       let curWeek = weeks.find((e) => e.number === weekNumber);
       if (!curWeek) {
@@ -986,7 +986,8 @@ export class ScheduleService {
       );
 
       let timeRange = timeInterval;
-      let [startTime, endTime] = timeInterval.split('-');
+      const [startTime, sourceEndTime] = timeInterval.split('-');
+      let endTime = sourceEndTime;
       if (academicHours > 1 && startTime && endTime) {
         const dateTime = new Date(0);
         const ds = startTime.split(':').map(Number);
@@ -999,7 +1000,7 @@ export class ScheduleService {
         timeRange = `${startTime}-${endTime}`;
       }
 
-      let originalTime =
+      const originalTime =
         academicHours > 1 ? `${startTime}-...${academicHours * 2}ч` : timeRange;
 
       if (isShort) timeRange += ' [SHORT]';
