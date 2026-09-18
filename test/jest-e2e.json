@@ -1,9 +1,16 @@
 {
   "moduleFileExtensions": ["js", "json", "ts"],
-  "rootDir": ".",
+  "rootDir": "..",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^@my-environment$": "<rootDir>/src/environment",
+    "^@my-common$": "<rootDir>/src/common",
+    "^@my-common/(.*)$": "<rootDir>/src/common/$1",
+    "^@my-interfaces$": "<rootDir>/src/interface",
+    "^@my-interfaces/(.*)$": "<rootDir>/src/interface/$1"
   }
 }

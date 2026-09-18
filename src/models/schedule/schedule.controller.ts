@@ -9,6 +9,7 @@ import {
   Param,
   ParseIntPipe,
   Query,
+  SerializeOptions,
   UseInterceptors,
   Version,
 } from '@nestjs/common';
@@ -107,6 +108,10 @@ export class ScheduleController {
   @ApiSemesterQuery()
   @ApiOperation({ summary: 'Вернуть список с количеством различных данных' })
   @ApiResponse({ status: HttpStatus.OK, type: ScheduleCountResponseDto })
+  @SerializeOptions({
+    type: ScheduleCountResponseDto,
+    excludeExtraneousValues: true,
+  })
   async getCount(@Query() query: SemesterQueryDto) {
     const semesterId = await this.getPublicSemesterId(query);
     const institutes = await this.scheduleService.getCount(
@@ -156,6 +161,10 @@ export class ScheduleController {
   })
   @ApiExtraModels(InstituteGroupsDto, GroupDetailDto)
   @ApiSemesterQuery()
+  @SerializeOptions({
+    type: ActualGroupsResponseDto,
+    excludeExtraneousValues: true,
+  })
   async getActualGroups(
     @Query('additional') additional: boolean = false,
     @Query() query: SemesterQueryDto,
@@ -188,6 +197,10 @@ export class ScheduleController {
   })
   @ApiSemesterQuery()
   @ApiResponse({ status: HttpStatus.OK, type: ScheduleItemsResponseDto })
+  @SerializeOptions({
+    type: ScheduleItemsResponseDto,
+    excludeExtraneousValues: true,
+  })
   async getByGroup(
     @Param('groupIdOrName') groupIdOrName: string,
     @Query() query: SemesterQueryDto,
@@ -234,6 +247,10 @@ export class ScheduleController {
   @NeedAuth()
   @OAuth2RequiredScope('schedule', ['advanced'], ['read'])
   @ApiErrorResponses(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN)
+  @SerializeOptions({
+    type: GroupWeekScheduleResponseDto,
+    excludeExtraneousValues: true,
+  })
   async getByGroupAsWeek(
     @Param('groupIdOrName') groupIdOrName: string,
     @Query() query: SemesterQueryDto,
@@ -255,6 +272,10 @@ export class ScheduleController {
   @ApiOperation({ summary: 'Список преподавателей в текущем семестре' })
   @ApiResponse({ status: HttpStatus.OK, type: IdNameListResponseDto })
   @ApiSemesterQuery()
+  @SerializeOptions({
+    type: IdNameListResponseDto,
+    excludeExtraneousValues: true,
+  })
   async getTeachers(@Query() query: SemesterQueryDto) {
     const semesterId = await this.getPublicSemesterId(query);
     const result = await this.scheduleService.getTeachersBySchedule(semesterId);
@@ -276,6 +297,10 @@ export class ScheduleController {
   })
   @ApiResponse({ status: HttpStatus.OK, type: TeacherScheduleResponseDto })
   @ApiSemesterQuery()
+  @SerializeOptions({
+    type: TeacherScheduleResponseDto,
+    excludeExtraneousValues: true,
+  })
   async getByTeacher(
     @Param('teacherId', ParseIntPipe) teacherId: number,
     @Query() query: SemesterQueryDto,
@@ -297,6 +322,10 @@ export class ScheduleController {
   @ApiOperation({ summary: 'Вернуть список аудиторий на текущий семестр' })
   @ApiResponse({ status: HttpStatus.OK, type: IdNameListResponseDto })
   @ApiSemesterQuery()
+  @SerializeOptions({
+    type: IdNameListResponseDto,
+    excludeExtraneousValues: true,
+  })
   async getAudiences(@Query() query: SemesterQueryDto) {
     const semesterId = await this.getPublicSemesterId(query);
     const result =
@@ -327,6 +356,10 @@ export class ScheduleController {
   })
   @ApiSemesterQuery()
   @ApiResponse({ status: HttpStatus.OK, type: ScheduleItemsResponseDto })
+  @SerializeOptions({
+    type: ScheduleItemsResponseDto,
+    excludeExtraneousValues: true,
+  })
   async getByAudience(
     @Param('audienceIdOrName') audienceIdOrName: string,
     @Query() query: SemesterQueryDto,
@@ -350,6 +383,10 @@ export class ScheduleController {
   @OAuth2RequiredScope('schedule', ['read'])
   @ApiErrorResponses(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN)
   @ApiResponse({ status: HttpStatus.OK, type: [AudienceDto] })
+  @SerializeOptions({
+    type: AudienceDto,
+    excludeExtraneousValues: true,
+  })
   async getAllAudiences() {
     const result = await this.scheduleService.getAudiences();
 
@@ -367,6 +404,10 @@ export class ScheduleController {
   @OAuth2RequiredScope('schedule', ['read'])
   @ApiErrorResponses(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN)
   @ApiResponse({ status: HttpStatus.OK, type: [ScheduleSemesterDto] })
+  @SerializeOptions({
+    type: ScheduleSemesterDto,
+    excludeExtraneousValues: true,
+  })
   async getScheduleSemesters() {
     const result = await this.scheduleService.getScheduleSemesters();
 

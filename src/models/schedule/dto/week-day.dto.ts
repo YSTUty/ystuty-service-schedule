@@ -1,9 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Exclude, Expose } from 'class-transformer';
 
 import { WeekNumberType } from '@my-interfaces';
 
+@Exclude()
 export class WeekDayDto {
   /** Тип/номер дня недели */
+  @Expose()
   @ApiProperty({
     enum: WeekNumberType,
     enumName: 'WeekNumberType',
@@ -12,6 +15,7 @@ export class WeekDayDto {
   public type: WeekNumberType;
 
   /** Дата дня недели */
+  @Expose()
   @ApiProperty({
     example: '2025-09-01T00:00:00.000Z',
     format: 'date-time',
@@ -19,6 +23,7 @@ export class WeekDayDto {
   public date: Date;
 
   /** Номер недели в семестре */
+  @Expose()
   @ApiProperty({ example: 1, minimum: 1 })
   public weekNumber: number;
 }

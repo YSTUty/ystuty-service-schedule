@@ -1,4 +1,11 @@
-import { Controller, Get, HttpStatus } from '@nestjs/common';
+import {
+  ClassSerializerInterceptor,
+  Controller,
+  Get,
+  HttpStatus,
+  SerializeOptions,
+  UseInterceptors,
+} from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 
@@ -21,6 +28,7 @@ import { UptimeResponseDto } from './dto/app-response.dto';
 
 @ApiTags('system')
 @Controller()
+@UseInterceptors(ClassSerializerInterceptor)
 export class AppController {
   public readonly timeStart = Date.now();
 
@@ -28,6 +36,10 @@ export class AppController {
   @SkipThrottle()
   @ApiOperation({ summary: 'Проверить, что HTTP-процесс запущен' })
   @ApiResponse({ status: HttpStatus.OK, type: UptimeResponseDto })
+  @SerializeOptions({
+    type: UptimeResponseDto,
+    excludeExtraneousValues: true,
+  })
   getTime() {
     return { uptime: Date.now() - this.timeStart };
   }
