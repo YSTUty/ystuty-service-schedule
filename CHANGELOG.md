@@ -1,5 +1,71 @@
 # Changelog
 
+## [0.1.2](https://github.com/YSTUty/ystuty-service-schedule/compare/v0.1.1...v0.1.2) (2026-09-18)
+
+### 🧹 Chore
+
+* add `Unsupported` lesson flag if `None` ([98d213a](https://github.com/YSTUty/ystuty-service-schedule/commit/98d213a4334e994cf1cb470797513bf1cdbb738c))
+* **cors:** add `content-type` to allowed headers ([fd44554](https://github.com/YSTUty/ystuty-service-schedule/commit/fd4455468035b3793396491cbdf68931b5527f06))
+* **docker:** add link `redis` ([171cfcd](https://github.com/YSTUty/ystuty-service-schedule/commit/171cfcd40cd7ba023aa3426fab0ea095cf439046))
+* **docker:** update node.js to v22 ([9ba5239](https://github.com/YSTUty/ystuty-service-schedule/commit/9ba52393c7ea30ba0d09bf681cef76fd58a10767))
+* **env:** update ([ddad095](https://github.com/YSTUty/ystuty-service-schedule/commit/ddad0951a60a7be9945b3fbe5bb5a7577b05c602))
+* fix lint errors ([a27cc41](https://github.com/YSTUty/ystuty-service-schedule/commit/a27cc41532c25cd4aa495242f877f7ba7c1dd80c))
+* **husky:** update commit message hook ([b525739](https://github.com/YSTUty/ystuty-service-schedule/commit/b5257391f94b8013635ea6ff49f621a38920b882))
+* **main:** update `scalar` api reference ([fc97953](https://github.com/YSTUty/ystuty-service-schedule/commit/fc979539ea7e35493345368a60e3760e870e85c2))
+* **oauth:** add `serviceToken` param ([0cb7a4b](https://github.com/YSTUty/ystuty-service-schedule/commit/0cb7a4bb08cd61dcf7b66e7b043662f27632fa24))
+* **readme:** update header ([a9eaf53](https://github.com/YSTUty/ystuty-service-schedule/commit/a9eaf53b278f1aa7322dd5c45e74caa9eaee3c47))
+* **service:** correct getting groups for `actual_groups` method ([f041c83](https://github.com/YSTUty/ystuty-service-schedule/commit/f041c83a5f302009966a833b4023ebf12b3f83bb))
+* **throttler:** update module and add cors exposed headers ([410e2e9](https://github.com/YSTUty/ystuty-service-schedule/commit/410e2e920c7a5f5fc046548d32375f5f9be72d0c))
+* update docker & makefile ([7cf4c9e](https://github.com/YSTUty/ystuty-service-schedule/commit/7cf4c9ed4685023962af74824c2a00d5e177ddd4))
+
+### 🚀 Features
+
+* add extend password for `swagger-stats` ([5ac5a22](https://github.com/YSTUty/ystuty-service-schedule/commit/5ac5a22292f8a8578af314019d566c9e3a961beb))
+* add nolimit by token scopes ([e7bf124](https://github.com/YSTUty/ystuty-service-schedule/commit/e7bf12402aa8d7ca8b27aa650fa32f02d12981c3))
+* **api:** add `scalar` api reference ([cab2a55](https://github.com/YSTUty/ystuty-service-schedule/commit/cab2a556504f5a0d135e5235c74ee79d5fd9519b))
+* **api:** enforce response dto serialization ([2c3cd34](https://github.com/YSTUty/ystuty-service-schedule/commit/2c3cd34011ad8bc43cb7e0afeb843ebb885105ea))
+* **calendar:** add caldav support for teachers ([9760ba9](https://github.com/YSTUty/ystuty-service-schedule/commit/9760ba98c6c72bff7939e2e48585d566e5a19e38))
+* **calendar:** add read-only caldav endpoint ([b06bf46](https://github.com/YSTUty/ystuty-service-schedule/commit/b06bf463432306e5e295c8259ac96ebf840aafdf))
+* **common:** add `TransformToClass` for extend ([c410914](https://github.com/YSTUty/ystuty-service-schedule/commit/c410914b9d2060eeaba3f7c0305bb2c4e95687d6))
+* **common:** add logger for global error handler and `HttpAndRpcExceptionFilter` ([b406705](https://github.com/YSTUty/ystuty-service-schedule/commit/b406705d43456ac7f70a921be194781196a5d91a))
+* **metrics:** add calendar export metrics ([1a8f374](https://github.com/YSTUty/ystuty-service-schedule/commit/1a8f37471dff6ca397ac29e40095fa02a7d00d57))
+* **redis:** add connection event logging ([a5dbfbb](https://github.com/YSTUty/ystuty-service-schedule/commit/a5dbfbb1511b5e0ce147143166cf0b3ef12c1cd6))
+* **schedule:** add cache ttl metadata ([9bf4cb0](https://github.com/YSTUty/ystuty-service-schedule/commit/9bf4cb07eb72b9b6ec0522d1982205380e8a95a4))
+* **schedule:** add method for get semesters info ([34d9115](https://github.com/YSTUty/ystuty-service-schedule/commit/34d9115f1b9b6d38d7deb8fbc099b6e9f1a43999))
+* **schedule:** add public semester selection ([254169c](https://github.com/YSTUty/ystuty-service-schedule/commit/254169ca1287ccf1a871a3c4da19d57c2168f560))
+* **schedule:** add semester selection and lesson type diagnostics ([83a2951](https://github.com/YSTUty/ystuty-service-schedule/commit/83a295175f0392dd961ed97b7cbdf3adc9e41f2d))
+* **schedule:** classify untyped schedule activities ([6da92fb](https://github.com/YSTUty/ystuty-service-schedule/commit/6da92fbc52a3aa74a21c98aba6ba091a0fa1e6e0))
+* **throttler:** store rate limits in redis ([2a6a6a2](https://github.com/YSTUty/ystuty-service-schedule/commit/2a6a6a2986ee7b81cce2ffedbd420b89e9006280))
+
+### 🐛 Bug Fixes
+
+* **env:** replace `??` to `||` for numbers ([a63748a](https://github.com/YSTUty/ystuty-service-schedule/commit/a63748a28eec681f2a7619c4b61e75a3c2940f3e))
+* **package:** move `@nestjs/typeorm` to deps from dev-deps ([8584224](https://github.com/YSTUty/ystuty-service-schedule/commit/8584224ac5db5539f3f969991f4010e20978db14))
+* **redis:** keep requests available when cache fails ([6930df3](https://github.com/YSTUty/ystuty-service-schedule/commit/6930df3c2349dc532fe8df90015f13b54b6a3591))
+
+### 📖 Documentation
+
+* **openapi:** document public api contracts ([4c09509](https://github.com/YSTUty/ystuty-service-schedule/commit/4c09509c97243a3ca240c8e8abd2452b79fddcb3))
+* **readme:** update service documentation ([a42947b](https://github.com/YSTUty/ystuty-service-schedule/commit/a42947b3a46726bb5c62b3e998457b7a7dd119bd))
+
+### ☯ Styling
+
+* **prettier:** format code with sorting imports ([844a582](https://github.com/YSTUty/ystuty-service-schedule/commit/844a5826d009ce95c46d5d86d490cbc63105e6c4))
+
+### 🔧 Code Refactoring
+
+* **bootstrap:** remove duplicate module initialization ([7b774a2](https://github.com/YSTUty/ystuty-service-schedule/commit/7b774a2dbfd67b4a64b630acdbfd4bcb2eed38f9))
+
+### 🔨 Build System
+
+* **deps:** upgrade nestjs toolchain and release workflow ([190fe61](https://github.com/YSTUty/ystuty-service-schedule/commit/190fe611c6d9ce747e0211c28d3baf4e8387871c))
+* **docker:** replace jq prepackage image ([4fff846](https://github.com/YSTUty/ystuty-service-schedule/commit/4fff846ff82ec796b01c5f9a046e1b6c8b4603c9))
+* **node:** standardize nodejs `24` runtime ([a01ab2d](https://github.com/YSTUty/ystuty-service-schedule/commit/a01ab2d66167fe8c9f3ce299ef11c545e0a18f11))
+
+### 🛠️ CI
+
+* add build and deployment workflows ([aad4a9f](https://github.com/YSTUty/ystuty-service-schedule/commit/aad4a9f57bf20082a5d7a1b697398ada07068f15))
+
 ### [0.1.1](https://github.com/YSTUty/ystuty-service-schedule/compare/v0.1.0...v0.1.1) (2024-04-25)
 
 
