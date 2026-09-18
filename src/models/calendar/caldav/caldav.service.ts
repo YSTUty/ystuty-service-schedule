@@ -31,12 +31,12 @@ export class CalDavService {
    */
   createPropfindResponse(
     collectionHref: string,
-    groupName: string,
+    calendarName: string,
     calendar: CalendarResource,
     depth: string | undefined,
   ): string {
     const responses = [
-      this.createCollectionResponse(collectionHref, groupName),
+      this.createCollectionResponse(collectionHref, calendarName),
     ];
     if (depth === '1' || depth === 'infinity') {
       responses.push(
@@ -68,7 +68,7 @@ export class CalDavService {
 
   private createCollectionResponse(
     collectionHref: string,
-    groupName: string,
+    calendarName: string,
   ): string {
     return `
       <d:response>
@@ -76,8 +76,8 @@ export class CalDavService {
         <d:propstat>
           <d:prop>
             <d:resourcetype><d:collection/><c:calendar/></d:resourcetype>
-            <d:displayname>${this.escapeXml(`YSTUty [${groupName}]`)}</d:displayname>
-            <c:calendar-description xml:lang="ru">Расписание занятий ЯГТУ для группы ${this.escapeXml(groupName)}</c:calendar-description>
+            <d:displayname>${this.escapeXml(`YSTUty [${calendarName}]`)}</d:displayname>
+            <c:calendar-description xml:lang="ru">Расписание занятий ЯГТУ: ${this.escapeXml(calendarName)}</c:calendar-description>
             <c:supported-calendar-component-set><c:comp name="VEVENT"/></c:supported-calendar-component-set>
             <c:supported-calendar-data><c:calendar-data content-type="text/calendar" version="2.0"/></c:supported-calendar-data>
           </d:prop>

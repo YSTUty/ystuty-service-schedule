@@ -22,7 +22,7 @@ import { CalDavBasicAuthGuard } from './caldav-basic-auth.guard';
 import { CalDavService } from './caldav.service';
 
 /**
- * Read-only CalDAV-совместимый endpoint для календаря одной группы.
+ * Read-only CalDAV-совместимый endpoint для календарей групп и преподавателей.
  */
 @ApiExcludeController()
 @Public()
@@ -35,19 +35,74 @@ export class CalDavController {
     private readonly metricsService: MetricsService,
   ) {}
 
-  @All([':groupName', ':groupName/:resource'])
+  @All(['group/:groupName', 'group/:groupName/:resource'])
   @Version('1')
-  async handleRequest(
+  async handleGroupRequest(
     @Param('groupName') groupName: string,
     @Param('resource') resource: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
+    await this.handleRequest(
+      {
+        type: 'group',
+        value: groupName,
+        displayName: groupName,
+        getCalendar: () =>
+          this.calendarService.generateCalenadrForGroup(groupName),
+        notFoundMessage: 'Group not found by this name or id',
+      },
+      resource,
+      req,
+      res,
+    );
+  }
+
+  @All(['teacher/:teacherId', 'teacher/:teacherId/:resource'])
+  @Version('1')
+  async handleTeacherRequest(
+    @Param('teacherId') teacherId: number,
+    @Param('resource') resource: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.handleRequest(
+      {
+        type: 'teacher',
+        value: teacherId,
+        displayName: `teacher:${teacherId}`,
+        getCalendar: () =>
+          this.calendarService.generateCalenadrForTeacher(teacherId),
+        notFoundMessage: 'Teacher not found',
+      },
+      resource,
+      req,
+      res,
+    );
+  }
+
+  /**
+   * Обрабатывает общие для всех календарей методы CalDAV.
+   */
+  private async handleRequest(
+    target: {
+      type: 'group' | 'teacher';
+      value: string | number;
+      displayName: string;
+      getCalendar: () => ReturnType<
+        CalendarService['generateCalenadrForGroup']
+      >;
+      notFoundMessage: string;
+    },
+    resource: string | undefined,
+    req: Request,
+    res: Response,
+  ): Promise<void> {
     const method = req.method.toUpperCase();
     const stopTimer = this.metricsService.startCalendarRequestTimer({
       protocol: 'caldav',
-      targetType: 'group',
-      target: groupName,
+      targetType: target.type,
+      target: target.value,
       method,
     });
     try {
@@ -65,11 +120,10 @@ export class CalDavController {
         throw new NotFoundException('Calendar resource not found');
       }
 
-      const generatedCalendar =
-        await this.calendarService.generateCalenadrForGroup(groupName);
+      const generatedCalendar = await target.getCalendar();
       if (!generatedCalendar) {
         stopTimer('not_found');
-        throw new NotFoundException('Group not found by this name or id');
+        throw new NotFoundException(target.notFoundMessage);
       }
       const calendar = this.calDavService.createCalendarResource(
         generatedCalendar.toString(),
@@ -89,7 +143,7 @@ export class CalDavController {
           .send(
             this.calDavService.createPropfindResponse(
               collectionHref,
-              groupName,
+              target.displayName,
               calendar,
               req.header('Depth'),
             ),

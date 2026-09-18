@@ -21,6 +21,9 @@ describe('CalDavController', () => {
       generateCalenadrForGroup: jest.fn().mockResolvedValue({
         toString: () => 'BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n',
       }),
+      generateCalenadrForTeacher: jest.fn().mockResolvedValue({
+        toString: () => 'BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n',
+      }),
     };
     const stopTimer = jest.fn();
     const metricsService = {
@@ -47,7 +50,7 @@ describe('CalDavController', () => {
       originalUrl: '/v1/calendar/caldav/%D0%A6%D0%98%D0%A1-16',
     };
 
-    await controller.handleRequest(
+    await controller.handleGroupRequest(
       'ЦИС-16',
       undefined,
       request as any,
@@ -76,7 +79,7 @@ describe('CalDavController', () => {
       originalUrl: '/v1/calendar/caldav/%D0%A6%D0%98%D0%A1-16/calendar.ics',
     };
 
-    await controller.handleRequest(
+    await controller.handleGroupRequest(
       'ЦИС-16',
       'calendar.ics',
       request as any,
@@ -88,5 +91,33 @@ describe('CalDavController', () => {
       'Allow',
       'OPTIONS, PROPFIND, REPORT, GET, HEAD',
     );
+  });
+
+  it('returns a teacher calendar through CalDAV', async () => {
+    const { controller, calendarService, metricsService, stopTimer } =
+      createController();
+    const response = createResponse();
+    const request = {
+      header: jest.fn(),
+      method: 'GET',
+      originalUrl: '/v1/calendar/caldav/teacher/42/calendar.ics',
+    };
+
+    await controller.handleTeacherRequest(
+      42,
+      'calendar.ics',
+      request as any,
+      response as any,
+    );
+
+    expect(calendarService.generateCalenadrForTeacher).toHaveBeenCalledWith(42);
+    expect(metricsService.startCalendarRequestTimer).toHaveBeenCalledWith({
+      protocol: 'caldav',
+      targetType: 'teacher',
+      target: 42,
+      method: 'GET',
+    });
+    expect(response.status).toHaveBeenCalledWith(200);
+    expect(stopTimer).toHaveBeenCalledWith('success');
   });
 });
