@@ -1430,6 +1430,16 @@
   resolved "https://registry.yarnpkg.com/@js-joda/core/-/core-5.6.1.tgz#03e2453d877b61c3f593cf031fd18b375bd548b6"
   integrity sha512-Xla/d7ZMMR6+zRd6lTio0wRZECfcfFJP7GGe9A9L4tDOlD5CX4YcZ4YZle9w58bBYzssojVapI84RraKWDQZRg==
 
+"@khaledez/nestjs-prom@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@khaledez/nestjs-prom/-/nestjs-prom-1.0.0.tgz#98f2fbca56dd006270cf4ae1d4b954a15eeefd2e"
+  integrity sha512-JiwBrPTnb67o9/gwyMJGNuBN4OMYsBIJfQPFnMPU1BPiGI6VONUMiVdmiDw4uzcBEifKz6d0fyQqFCA59dFSSQ==
+  dependencies:
+    "@nestjs/testing" "^7.3.2"
+    prom-client "^13.2.0"
+    response-time "^2.3.2"
+    url-value-parser "^2.0.1"
+
 "@lukeed/csprng@^1.0.0":
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/@lukeed/csprng/-/csprng-1.1.0.tgz#1e3e4bd05c1cc7a0b2ddbd8a03f39f6e4b5e6cfe"
@@ -1551,6 +1561,14 @@
   integrity sha512-6PEjtGlqwpXDUDsiuSmE7EoRGHs27YAmHctgLMXfeb2oyWQsg5a/8+vQTnY/oF4c6wSRPM9x5OPtQ/JCuVNg9g==
   dependencies:
     tslib "2.8.1"
+
+"@nestjs/testing@^7.3.2":
+  version "7.6.18"
+  resolved "https://registry.yarnpkg.com/@nestjs/testing/-/testing-7.6.18.tgz#b4c137b5b6c2fb18c51602d33a083cd97c648283"
+  integrity sha512-1AVk9vWZlPpx4CmzY6z9z0DHFgGCadfr01QdisGFAN740JwKqZWEqz12cVd+nsXDlYQPFRkp2ICBIS/6k1qZGQ==
+  dependencies:
+    optional "0.1.4"
+    tslib "2.2.0"
 
 "@nestjs/throttler@^6.5.0":
   version "6.5.0"
@@ -6232,6 +6250,11 @@ on-headers@~1.0.2:
   resolved "https://registry.yarnpkg.com/on-headers/-/on-headers-1.0.2.tgz#772b0ae6aaa525c399e489adfad90c403eb3c28f"
   integrity sha512-pZAE+FJLoyITytdqK0U5s+FIpjN0JP3OzFi/u8Rx+EV5/W+JTWGXG8xFzevE7AjBfDqHv/8vL8qQsIhHnqRkrA==
 
+on-headers@~1.1.0:
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/on-headers/-/on-headers-1.1.0.tgz#59da4f91c45f5f989c6e4bcedc5a3b0aed70ff65"
+  integrity sha512-737ZY3yNnXy37FHkQxPzt4UZ2UWPWiCZWLvFZ4fu5cueciegX0zGPnrlY6bwRg4FdQOe9YU8MkmJwGhoMybl8A==
+
 once@^1.3.0, once@^1.4.0:
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/once/-/once-1.4.0.tgz#583b1aa775961d4b113ac17d9c50baef9dd76bd1"
@@ -6273,6 +6296,11 @@ open@^8.0.0:
     define-lazy-prop "^2.0.0"
     is-docker "^2.1.1"
     is-wsl "^2.2.0"
+
+optional@0.1.4:
+  version "0.1.4"
+  resolved "https://registry.yarnpkg.com/optional/-/optional-0.1.4.tgz#cdb1a9bedc737d2025f690ceeb50e049444fd5b3"
+  integrity sha512-gtvrrCfkE08wKcgXaVwQVgwEQ8vel2dc5DDBn9RLQZ3YtmtkBss6A2HY6BnJH4N/4Ku97Ri/SF8sNWE2225WJw==
 
 optionator@^0.9.3:
   version "0.9.3"
@@ -6623,7 +6651,7 @@ process@^0.11.10:
   resolved "https://registry.yarnpkg.com/process/-/process-0.11.10.tgz#7332300e840161bda3e69a1d1d91a7d4bc16f182"
   integrity sha512-cdGef/drWFoydD1JsMzuFf8100nZl+GT+yacc2bEced5f9Rjk4z+WtFUTBu9PhOi9j/jfmBPu0mMEY4wIdAF8A==
 
-prom-client@^15.1.3:
+prom-client@15.1.3, prom-client@^13.2.0, prom-client@^15.1.3:
   version "15.1.3"
   resolved "https://registry.yarnpkg.com/prom-client/-/prom-client-15.1.3.tgz#69fa8de93a88bc9783173db5f758dc1c69fa8fc2"
   integrity sha512-6ZiOBfCywsD4k1BN9IX0uZhF+tJkV8q8llP64G5Hajs4JOeVLPCwpPVcpXy3BwYiUGgyJzsJJQeOIv7+hDSq8g==
@@ -6886,6 +6914,14 @@ resolve@^1.20.0:
     is-core-module "^2.13.0"
     path-parse "^1.0.7"
     supports-preserve-symlinks-flag "^1.0.0"
+
+response-time@^2.3.2:
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/response-time/-/response-time-2.3.4.tgz#a42e757c8d8147b7fbe68fc51a507b1f9a734e2c"
+  integrity sha512-fiyq1RvW5/Br6iAtT8jN1XrNY8WPu2+yEypLbaijWry8WDZmn12azG9p/+c+qpEebURLlQmqCB8BNSu7ji+xQQ==
+  dependencies:
+    depd "~2.0.0"
+    on-headers "~1.1.0"
 
 restore-cursor@^3.1.0:
   version "3.1.0"
@@ -7719,6 +7755,11 @@ tsconfig-paths@4.2.0, tsconfig-paths@^4.1.2, tsconfig-paths@^4.2.0:
     minimist "^1.2.6"
     strip-bom "^3.0.0"
 
+tslib@2.2.0:
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/tslib/-/tslib-2.2.0.tgz#fb2c475977e35e241311ede2693cee1ec6698f5c"
+  integrity sha512-gS9GVHRU+RGn5KQM2rllAlR3dU6m7AcpJKdtH8gFvQiC4Otgk98XnmMU+nZenHt/+VhnBPWwgrJsyrdcw6i23w==
+
 tslib@2.8.1, tslib@^2.0.1, tslib@^2.3.0:
   version "2.8.1"
   resolved "https://registry.yarnpkg.com/tslib/-/tslib-2.8.1.tgz#612efe4ed235d567e8aba5f2a5fab70280ade83f"
@@ -7945,6 +7986,11 @@ url-join@5.0.0:
   version "5.0.0"
   resolved "https://registry.yarnpkg.com/url-join/-/url-join-5.0.0.tgz#c2f1e5cbd95fa91082a93b58a1f42fecb4bdbcf1"
   integrity sha512-n2huDr9h9yzd6exQVnH/jU5mr+Pfx08LRXXZhkLLetAMESRj+anQsTAh940iMrIetKAmry9coFuZQ2jY8/p3WA==
+
+url-value-parser@^2.0.1:
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/url-value-parser/-/url-value-parser-2.2.0.tgz#f38ae8cd24604ec69bc219d66929ddbbd93a2b32"
+  integrity sha512-yIQdxJpgkPamPPAPuGdS7Q548rLhny42tg8d4vyTNzFqvOnwqrgHXvgehT09U7fwrzxi3RxCiXjoNUNnNOlQ8A==
 
 util-deprecate@^1.0.1:
   version "1.0.2"

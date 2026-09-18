@@ -15,6 +15,7 @@ import { Request, Response } from 'express';
 
 import { Public } from '@my-common';
 
+import { MetricsService } from '../../metrics/metrics.service';
 import { CalendarService } from '../calendar.service';
 
 import { CalDavBasicAuthGuard } from './caldav-basic-auth.guard';
@@ -31,6 +32,7 @@ export class CalDavController {
   constructor(
     private readonly calendarService: CalendarService,
     private readonly calDavService: CalDavService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   @All([':groupName', ':groupName/:resource'])
@@ -42,62 +44,80 @@ export class CalDavController {
     @Res() res: Response,
   ): Promise<void> {
     const method = req.method.toUpperCase();
-    if (method === 'OPTIONS') {
+    const stopTimer = this.metricsService.startCalendarRequestTimer({
+      protocol: 'caldav',
+      targetType: 'group',
+      target: groupName,
+      method,
+    });
+    try {
+      if (method === 'OPTIONS') {
+        res
+          .status(HttpStatus.NO_CONTENT)
+          .set(this.calDavService.getOptionsHeaders())
+          .end();
+        stopTimer('success');
+        return;
+      }
+
+      if (resource && resource !== 'calendar.ics') {
+        stopTimer('not_found');
+        throw new NotFoundException('Calendar resource not found');
+      }
+
+      const generatedCalendar =
+        await this.calendarService.generateCalenadrForGroup(groupName);
+      if (!generatedCalendar) {
+        stopTimer('not_found');
+        throw new NotFoundException('Group not found by this name or id');
+      }
+      const calendar = this.calDavService.createCalendarResource(
+        generatedCalendar.toString(),
+      );
+      const collectionHref = this.getCollectionHref(req);
+
+      if (method === 'GET' || method === 'HEAD') {
+        this.sendCalendar(res, calendar, method === 'HEAD');
+        stopTimer('success');
+        return;
+      }
+      if (method === 'PROPFIND') {
+        res
+          .status(207)
+          .type('application/xml; charset=utf-8')
+          .set('DAV', '1, calendar-access')
+          .send(
+            this.calDavService.createPropfindResponse(
+              collectionHref,
+              groupName,
+              calendar,
+              req.header('Depth'),
+            ),
+          );
+        stopTimer('success');
+        return;
+      }
+      if (method === 'REPORT') {
+        res
+          .status(207)
+          .type('application/xml; charset=utf-8')
+          .set('DAV', '1, calendar-access')
+          .send(
+            this.calDavService.createReportResponse(collectionHref, calendar),
+          );
+        stopTimer('success');
+        return;
+      }
+
       res
-        .status(HttpStatus.NO_CONTENT)
-        .set(this.calDavService.getOptionsHeaders())
+        .status(HttpStatus.METHOD_NOT_ALLOWED)
+        .set('Allow', this.calDavService.getOptionsHeaders().Allow)
         .end();
-      return;
+      stopTimer('method_not_allowed');
+    } catch (error) {
+      stopTimer('error');
+      throw error;
     }
-
-    if (resource && resource !== 'calendar.ics') {
-      throw new NotFoundException('Calendar resource not found');
-    }
-
-    const generatedCalendar =
-      await this.calendarService.generateCalenadrForGroup(groupName);
-    if (!generatedCalendar) {
-      throw new NotFoundException('Group not found by this name or id');
-    }
-    const calendar = this.calDavService.createCalendarResource(
-      generatedCalendar.toString(),
-    );
-    const collectionHref = this.getCollectionHref(req);
-
-    if (method === 'GET' || method === 'HEAD') {
-      this.sendCalendar(res, calendar, method === 'HEAD');
-      return;
-    }
-    if (method === 'PROPFIND') {
-      res
-        .status(207)
-        .type('application/xml; charset=utf-8')
-        .set('DAV', '1, calendar-access')
-        .send(
-          this.calDavService.createPropfindResponse(
-            collectionHref,
-            groupName,
-            calendar,
-            req.header('Depth'),
-          ),
-        );
-      return;
-    }
-    if (method === 'REPORT') {
-      res
-        .status(207)
-        .type('application/xml; charset=utf-8')
-        .set('DAV', '1, calendar-access')
-        .send(
-          this.calDavService.createReportResponse(collectionHref, calendar),
-        );
-      return;
-    }
-
-    res
-      .status(HttpStatus.METHOD_NOT_ALLOWED)
-      .set('Allow', this.calDavService.getOptionsHeaders().Allow)
-      .end();
   }
 
   private sendCalendar(

@@ -13,6 +13,8 @@ import { RealIP } from 'nestjs-real-ip';
 
 import { Request, Response } from 'express';
 
+import { MetricsService } from '../metrics/metrics.service';
+
 import { CalendarService } from './calendar.service';
 
 @ApiTags('calendar')
@@ -20,7 +22,10 @@ import { CalendarService } from './calendar.service';
 export class CalendarController {
   private readonly logger = new Logger(CalendarController.name);
 
-  constructor(private readonly calendarService: CalendarService) {}
+  constructor(
+    private readonly calendarService: CalendarService,
+    private readonly metricsService: MetricsService,
+  ) {}
 
   @Get('group/:groupName.ical')
   @Version('1')
@@ -65,17 +70,30 @@ export class CalendarController {
       `Generate calendar [${groupName}]; (ip: ${ipAddress}) ${JSON.stringify(req.headers['user-agent'])}`,
     );
 
-    const calendar =
-      await this.calendarService.generateCalenadrForGroup(groupName);
-    if (!calendar) {
-      throw new NotFoundException('group not found by this name or id');
-    }
-
-    res.writeHead(200, {
-      'Content-Type': 'text/calendar; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${encodeURIComponent(`${groupName}.ics`)}"`,
+    const stopTimer = this.metricsService.startCalendarRequestTimer({
+      protocol: 'ical',
+      targetType: 'group',
+      target: groupName,
+      method: 'GET',
     });
-    res.end(calendar.toString());
+    try {
+      const calendar =
+        await this.calendarService.generateCalenadrForGroup(groupName);
+      if (!calendar) {
+        stopTimer('not_found');
+        throw new NotFoundException('group not found by this name or id');
+      }
+
+      res.writeHead(200, {
+        'Content-Type': 'text/calendar; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(`${groupName}.ics`)}"`,
+      });
+      res.end(calendar.toString());
+      stopTimer('success');
+    } catch (error) {
+      stopTimer('error');
+      throw error;
+    }
   }
 
   @Get('teacher/:teacherId.ical')
@@ -119,16 +137,29 @@ export class CalendarController {
       `Generate calendar [teacher:${teacherId}]; (ip: ${ipAddress}) ${JSON.stringify(req.headers['user-agent'])}`,
     );
 
-    const calendar =
-      await this.calendarService.generateCalenadrForTeacher(teacherId);
-    if (!calendar) {
-      throw new NotFoundException('Teacher not found');
-    }
-
-    res.writeHead(200, {
-      'Content-Type': 'text/calendar; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${encodeURIComponent(`teacher-${teacherId}.ics`)}"`,
+    const stopTimer = this.metricsService.startCalendarRequestTimer({
+      protocol: 'ical',
+      targetType: 'teacher',
+      target: teacherId,
+      method: 'GET',
     });
-    res.end(calendar.toString());
+    try {
+      const calendar =
+        await this.calendarService.generateCalenadrForTeacher(teacherId);
+      if (!calendar) {
+        stopTimer('not_found');
+        throw new NotFoundException('Teacher not found');
+      }
+
+      res.writeHead(200, {
+        'Content-Type': 'text/calendar; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(`teacher-${teacherId}.ics`)}"`,
+      });
+      res.end(calendar.toString());
+      stopTimer('success');
+    } catch (error) {
+      stopTimer('error');
+      throw error;
+    }
   }
 }

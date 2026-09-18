@@ -22,17 +22,24 @@ describe('CalDavController', () => {
         toString: () => 'BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n',
       }),
     };
+    const stopTimer = jest.fn();
+    const metricsService = {
+      startCalendarRequestTimer: jest.fn(() => stopTimer),
+    };
     return {
       calendarService,
+      metricsService,
+      stopTimer,
       controller: new CalDavController(
         calendarService as any,
         new CalDavService(),
+        metricsService as any,
       ),
     };
   };
 
   it('returns calendar data for a CalDAV REPORT', async () => {
-    const { controller } = createController();
+    const { controller, metricsService, stopTimer } = createController();
     const response = createResponse();
     const request = {
       header: jest.fn(),
@@ -51,6 +58,13 @@ describe('CalDavController', () => {
     expect(response.send).toHaveBeenCalledWith(
       expect.stringContaining('BEGIN:VCALENDAR'),
     );
+    expect(metricsService.startCalendarRequestTimer).toHaveBeenCalledWith({
+      protocol: 'caldav',
+      targetType: 'group',
+      target: 'ЦИС-16',
+      method: 'REPORT',
+    });
+    expect(stopTimer).toHaveBeenCalledWith('success');
   });
 
   it('rejects write methods', async () => {

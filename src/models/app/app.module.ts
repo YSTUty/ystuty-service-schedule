@@ -14,6 +14,7 @@ import {
 } from '@my-common';
 
 import { CalendarModule } from '../calendar/calendar.module';
+import { MetricsModule } from '../metrics/metrics.module';
 import { OAuthServerModule } from '../oauth-server/oauth-server.module';
 import { RedisModule } from '../redis/redis.module';
 import { RedisService } from '../redis/redis.service';
@@ -34,6 +35,7 @@ OAuth2AccessTokenGuard.allowNoAuth = true;
         throttlers: [RATE_LIMIT.GLOBAL],
       }),
     }),
+    MetricsModule.forRoot(),
     RedisModule,
     OAuthServerModule,
     // Единственное подключение к БД: сущности регистрируются feature-модулями.

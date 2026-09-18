@@ -52,6 +52,19 @@ export const SWAGGER_ACCESS_PASSWORD: string =
 export const SWAGGER_ACCESS_PASSWORD_STATS: string =
   process.env.SWAGGER_ACCESS_PASSWORD_STATS || '';
 
+// * Prometheus
+export const INSTANCE_NAME: string =
+  process.env.INSTANCE_NAME || 'ystuty-service-schedule';
+export const PROMETHEUS_ENABLED: boolean = process.env.PROMETHEUS_ENABLED
+  ? process.env.PROMETHEUS_ENABLED === 'true'
+  : true;
+/**
+ * Включает series с конкретными группами и преподавателями. По умолчанию
+ * отключено, чтобы не создавать неограниченную cardinality в Prometheus.
+ */
+export const PROMETHEUS_DETAILED_CALENDAR_TARGET_METRICS: boolean =
+  process.env.PROMETHEUS_DETAILED_CALENDAR_TARGET_METRICS === 'true';
+
 // * TypeORM
 export const mssqlDefaults: DataSourceOptions = {
   type: 'mssql' as const,
