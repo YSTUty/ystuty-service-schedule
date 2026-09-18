@@ -4,6 +4,7 @@ import {
   ClassSerializerInterceptor,
   Controller,
   Get,
+  HttpStatus,
   NotFoundException,
   Param,
   ParseIntPipe,
@@ -18,25 +19,30 @@ import {
   ApiQuery,
   ApiResponse,
   ApiTags,
-  getSchemaPath,
 } from '@nestjs/swagger';
 
 import {
+  ApiErrorResponses,
   NeedAuth,
   OAuth2RequiredScope,
   RateLimitHeavyRead,
   RateLimitPublicRead,
 } from '@my-common';
-import { WeekNumberType } from '@my-interfaces';
 
 import {
+  ActualGroupsResponseDto,
+  AudienceDto,
   GroupDetailDto,
+  GroupWeekScheduleResponseDto,
+  IdNameListResponseDto,
   InstituteGroupsDto,
-  OneWeekDto,
+  ScheduleCountResponseDto,
+  ScheduleItemsResponseDto,
   ScheduleSemesterDto,
   SemesterQueryDto,
+  TeacherScheduleResponseDto,
+  WeeklyScheduleLessonDto,
 } from './dto';
-import { RaspGrWeekView } from './entity';
 import { ScheduleService } from './schedule.service';
 
 const ApiSemesterQuery = () =>
@@ -62,7 +68,13 @@ const ApiSemesterQuery = () =>
 @ApiTags('schedule')
 @Controller('/schedule')
 @UseInterceptors(ClassSerializerInterceptor)
-@ApiExtraModels(OneWeekDto)
+@ApiExtraModels(InstituteGroupsDto, GroupDetailDto, WeeklyScheduleLessonDto)
+@ApiErrorResponses(
+  HttpStatus.BAD_REQUEST,
+  HttpStatus.NOT_FOUND,
+  HttpStatus.TOO_MANY_REQUESTS,
+  HttpStatus.INTERNAL_SERVER_ERROR,
+)
 export class ScheduleController {
   constructor(private readonly scheduleService: ScheduleService) {}
 
@@ -94,19 +106,7 @@ export class ScheduleController {
   @Version('1')
   @ApiSemesterQuery()
   @ApiOperation({ summary: 'Вернуть список с количеством различных данных' })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      type: 'object',
-      properties: {
-        isCache: { type: 'boolean' },
-        institutes: { type: 'number', example: 8 },
-        groups: { type: 'number', example: 256 },
-        teachers: { type: 'number', example: 460 },
-        audiences: { type: 'number', example: 260 },
-      },
-    },
-  })
+  @ApiResponse({ status: HttpStatus.OK, type: ScheduleCountResponseDto })
   async getCount(@Query() query: SemesterQueryDto) {
     const semesterId = await this.getPublicSemesterId(query);
     const institutes = await this.scheduleService.getCount(
@@ -144,25 +144,7 @@ export class ScheduleController {
   @Version('1')
   @RateLimitPublicRead()
   @ApiOperation({ summary: 'Вернуть список актуальных групп по институтам' })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      type: 'object',
-      properties: {
-        isCache: { type: 'boolean' },
-        name: {
-          type: 'string',
-          description: 'Название семестра',
-        },
-        items: {
-          type: 'array',
-          items: {
-            $ref: getSchemaPath(InstituteGroupsDto),
-          },
-        },
-      },
-    },
-  })
+  @ApiResponse({ status: HttpStatus.OK, type: ActualGroupsResponseDto })
   @ApiQuery({
     name: 'additional',
     description: 'Вернуть расширенную информацию о группах',
@@ -205,19 +187,7 @@ export class ScheduleController {
     },
   })
   @ApiSemesterQuery()
-  @ApiResponse({
-    status: 200,
-    schema: {
-      type: 'object',
-      properties: {
-        isCache: { type: 'boolean' },
-        items: {
-          type: 'array',
-          items: { $ref: getSchemaPath(OneWeekDto) },
-        },
-      },
-    },
-  })
+  @ApiResponse({ status: HttpStatus.OK, type: ScheduleItemsResponseDto })
   async getByGroup(
     @Param('groupIdOrName') groupIdOrName: string,
     @Query() query: SemesterQueryDto,
@@ -259,39 +229,11 @@ export class ScheduleController {
     },
   })
   @ApiSemesterQuery()
-  @ApiResponse({
-    status: 200,
-    schema: {
-      type: 'object',
-      properties: {
-        isCache: { type: 'boolean' },
-        items: {
-          type: 'array',
-          items: {
-            properties: {
-              weekType: {
-                type: 'enum',
-                enum: Object.keys(WeekNumberType).filter(
-                  (e) => !isNaN(Number(e)),
-                ),
-              },
-              week: {
-                type: 'array',
-                items: { $ref: getSchemaPath(RaspGrWeekView) },
-              },
-              isLecture: {
-                type: 'boolean',
-              },
-            },
-          },
-        },
-      },
-    },
-  })
-  @ApiExtraModels(RaspGrWeekView)
+  @ApiResponse({ status: HttpStatus.OK, type: GroupWeekScheduleResponseDto })
   @RateLimitPublicRead()
   @NeedAuth()
   @OAuth2RequiredScope('schedule', ['advanced'], ['read'])
+  @ApiErrorResponses(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN)
   async getByGroupAsWeek(
     @Param('groupIdOrName') groupIdOrName: string,
     @Query() query: SemesterQueryDto,
@@ -311,32 +253,7 @@ export class ScheduleController {
   @Get('actual_teachers')
   @Version('1')
   @ApiOperation({ summary: 'Список преподавателей в текущем семестре' })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      type: 'object',
-      properties: {
-        isCache: { type: 'boolean' },
-        items: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'number' },
-              name: { type: 'string' },
-            },
-          },
-          example: [
-            { id: 1, name: 'Иванов Иван Иванович' },
-            { id: 2, name: 'Петров Петр Петрович' },
-            { id: 3, name: 'Сидоров Сидор Сидорович' },
-            { id: 4, name: 'Семенов Семен Семенович' },
-            { id: 5, name: 'Павлов Павел Павлович' },
-          ],
-        },
-      },
-    },
-  })
+  @ApiResponse({ status: HttpStatus.OK, type: IdNameListResponseDto })
   @ApiSemesterQuery()
   async getTeachers(@Query() query: SemesterQueryDto) {
     const semesterId = await this.getPublicSemesterId(query);
@@ -351,26 +268,13 @@ export class ScheduleController {
   @Get('teacher/:teacherId')
   @Version('1')
   @ApiOperation({ summary: 'Вернуть расписание для выбранного преподавателя' })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      type: 'object',
-      properties: {
-        isCache: { type: 'boolean' },
-        teacher: {
-          type: 'object',
-          properties: {
-            id: { type: 'number' },
-            name: { type: 'string' },
-          },
-        },
-        items: {
-          type: 'array',
-          items: { $ref: getSchemaPath(OneWeekDto) },
-        },
-      },
-    },
+  @ApiParam({
+    name: 'teacherId',
+    description: 'Числовой идентификатор преподавателя',
+    example: 42,
+    type: Number,
   })
+  @ApiResponse({ status: HttpStatus.OK, type: TeacherScheduleResponseDto })
   @ApiSemesterQuery()
   async getByTeacher(
     @Param('teacherId', ParseIntPipe) teacherId: number,
@@ -391,33 +295,7 @@ export class ScheduleController {
   @Get('actual_audiences')
   @Version('1')
   @ApiOperation({ summary: 'Вернуть список аудиторий на текущий семестр' })
-  @ApiResponse({
-    status: 200,
-    schema: {
-      type: 'object',
-      properties: {
-        isCache: { type: 'boolean' },
-        items: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'number' },
-              name: { type: 'string' },
-            },
-          },
-          example: [
-            { id: 601, name: 'В-201' },
-            { id: 354, name: 'Б-203' },
-          ],
-        },
-        count: {
-          type: 'number',
-          example: 2,
-        },
-      },
-    },
-  })
+  @ApiResponse({ status: HttpStatus.OK, type: IdNameListResponseDto })
   @ApiSemesterQuery()
   async getAudiences(@Query() query: SemesterQueryDto) {
     const semesterId = await this.getPublicSemesterId(query);
@@ -433,27 +311,22 @@ export class ScheduleController {
   @Get('audience/:audienceIdOrName')
   @Version('1')
   @ApiOperation({ summary: 'Вернуть расписание для выбранной аудитории' })
-  @ApiSemesterQuery()
-  @ApiResponse({
-    status: 200,
-    schema: {
-      type: 'object',
-      properties: {
-        isCache: { type: 'boolean' },
-        audience: {
-          type: 'object',
-          properties: {
-            id: { type: 'number' },
-            name: { type: 'string' },
-          },
-        },
-        items: {
-          type: 'array',
-          items: { $ref: getSchemaPath(OneWeekDto) },
-        },
+  @ApiParam({
+    name: 'audienceIdOrName',
+    description: 'Название или ID аудитории',
+    examples: {
+      byName: {
+        summary: 'Аудитория В-201',
+        value: 'В-201',
+      },
+      byId: {
+        summary: 'Аудитория по ID',
+        value: '601',
       },
     },
   })
+  @ApiSemesterQuery()
+  @ApiResponse({ status: HttpStatus.OK, type: ScheduleItemsResponseDto })
   async getByAudience(
     @Param('audienceIdOrName') audienceIdOrName: string,
     @Query() query: SemesterQueryDto,
@@ -475,6 +348,8 @@ export class ScheduleController {
   @RateLimitHeavyRead()
   @NeedAuth()
   @OAuth2RequiredScope('schedule', ['read'])
+  @ApiErrorResponses(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN)
+  @ApiResponse({ status: HttpStatus.OK, type: [AudienceDto] })
   async getAllAudiences() {
     const result = await this.scheduleService.getAudiences();
 
@@ -490,7 +365,8 @@ export class ScheduleController {
   @RateLimitHeavyRead()
   @NeedAuth()
   @OAuth2RequiredScope('schedule', ['read'])
-  @ApiResponse({ status: 200, type: [ScheduleSemesterDto] })
+  @ApiErrorResponses(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN)
+  @ApiResponse({ status: HttpStatus.OK, type: [ScheduleSemesterDto] })
   async getScheduleSemesters() {
     const result = await this.scheduleService.getScheduleSemesters();
 

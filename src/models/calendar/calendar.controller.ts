@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  HttpStatus,
   Logger,
   NotFoundException,
   Param,
@@ -13,12 +14,19 @@ import { RealIP } from 'nestjs-real-ip';
 
 import { Request, Response } from 'express';
 
+import { ApiErrorResponses } from '@my-common';
+
 import { MetricsService } from '../metrics/metrics.service';
 
 import { CalendarService } from './calendar.service';
 
 @ApiTags('calendar')
 @Controller('/calendar')
+@ApiErrorResponses(
+  HttpStatus.NOT_FOUND,
+  HttpStatus.TOO_MANY_REQUESTS,
+  HttpStatus.INTERNAL_SERVER_ERROR,
+)
 export class CalendarController {
   private readonly logger = new Logger(CalendarController.name);
 
@@ -47,7 +55,8 @@ export class CalendarController {
     },
   })
   @ApiResponse({
-    status: 200,
+    status: HttpStatus.OK,
+    description: 'iCalendar-файл с расписанием группы',
     content: {
       ['text/calendar']: {},
     },
@@ -98,10 +107,14 @@ export class CalendarController {
 
   @Get('teacher/:teacherId.ical')
   @Version('1')
-  @ApiOperation({ summary: 'Get an ical file for importing calendar events' })
+  @ApiOperation({
+    summary: 'Получить iCalendar-файл с расписанием преподавателя',
+  })
   @ApiParam({
     name: 'teacherId',
     required: true,
+    description: 'Числовой идентификатор преподавателя',
+    type: Number,
     examples: {
       a: {
         summary: 'Преподаватель Иванов Иван Иванович',
@@ -114,7 +127,8 @@ export class CalendarController {
     },
   })
   @ApiResponse({
-    status: 200,
+    status: HttpStatus.OK,
+    description: 'iCalendar-файл с расписанием преподавателя',
     content: {
       ['text/calendar']: {},
     },

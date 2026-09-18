@@ -1,7 +1,7 @@
 import { Logger, VersioningType } from '@nestjs/common';
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 
 import * as compression from 'compression';
 import * as basicAuth from 'express-basic-auth';
@@ -20,6 +20,7 @@ import {
 } from '@my-common';
 
 import { AppModule } from './models/app/app.module';
+import { createOpenApiDocument } from './models/app/openapi';
 
 async function bootstrap() {
   Logger.log(
@@ -111,54 +112,14 @@ async function bootstrap() {
     }
   }
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle(`${xEnv.APP_NAME} API`)
-    .setDescription(`This documentation describes the ${xEnv.APP_NAME} API.`)
-    .setVersion(process.env.npm_package_version)
-    .addTag('schedule', 'YSTU Schedule')
-    .addTag('calendar', 'YSTU Calendar')
-    .addServer(`${xEnv.OAUTH_URL}`, 'Main oAuth Server (for get token)')
-    .addOAuth2(
-      {
-        type: 'oauth2',
-        flows: {
-          clientCredentials: {
-            scopes: {
-              'schedule:read': 'Read Schedule',
-              'schedule:advanced:read': 'Read Advanced Schedule',
-              'schedule:nolimit': 'No rate limits',
-            },
-            tokenUrl: '/access_token',
-            refreshUrl: '/access_token',
-          },
-        },
-      },
-      'oauth2',
-    )
-    .addApiKey({ type: 'apiKey', in: 'query' }, 'access_token')
-    .addBearerAuth({ type: 'http', bearerFormat: 'Bearer' }, 'bearer');
-
-  if (xEnv.NODE_ENV === xEnv.EnvType.DEV) {
-    swaggerConfig.addServer(`http://{host}:{port}`, 'API local dev', {
-      host: {
-        default: 'localhost',
-        enum: ['localhost', '127.0.0.1', '[::1]'],
-      },
-      port: {
-        default: String(xEnv.EXTERNAL_PORT),
-        enum: [...new Set([xEnv.EXTERNAL_PORT, xEnv.SERVER_PORT].map(String))],
-      },
-    });
-  }
-  swaggerConfig.addServer(
-    `${xEnv.SERVER_URL}`,
-    'Main API Server (for main requests)',
-  );
-
-  const swaggerSpec = SwaggerModule.createDocument(app, swaggerConfig.build(), {
-    extraModels: [],
+  const swaggerSpec = createOpenApiDocument(app);
+  SwaggerModule.setup('swagger', app, swaggerSpec, {
+    swaggerOptions: {
+      displayOperationId: true,
+      filter: true,
+      persistAuthorization: true,
+    },
   });
-  SwaggerModule.setup('swagger', app, swaggerSpec, {});
 
   // TODO!: отключил статистику (`swaggerOnly: true`) пока не пофикшена утечка роутов в swagger-stats
   app.use(swStats.getMiddleware({ swaggerSpec, swaggerOnly: true }));

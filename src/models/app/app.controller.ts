@@ -1,8 +1,9 @@
-import { Controller, Get } from '@nestjs/common';
-import { ApiBearerAuth, ApiOAuth2 } from '@nestjs/swagger';
+import { Controller, Get, HttpStatus } from '@nestjs/common';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 
 import {
+  ApiErrorResponses,
   NeedAuth,
   OAuth2RequiredScope,
   RateLimitPrivateLookup,
@@ -16,22 +17,39 @@ import {
   UserPayloadDto,
 } from '../oauth-server/dto/oauth2-payload.dto';
 
+import { UptimeResponseDto } from './dto/app-response.dto';
+
+@ApiTags('system')
 @Controller()
 export class AppController {
   public readonly timeStart = Date.now();
 
   @Get('uptime')
   @SkipThrottle()
+  @ApiOperation({ summary: 'Проверить, что HTTP-процесс запущен' })
+  @ApiResponse({ status: HttpStatus.OK, type: UptimeResponseDto })
   getTime() {
     return { uptime: Date.now() - this.timeStart };
   }
 
   @Get('getMyGroup')
   @RateLimitPrivateLookup()
-  @ApiBearerAuth() /* (http, Bearer) */
-  @ApiOAuth2([]) /* (OAuth2, clientCredentials) */
   @NeedAuth()
   @OAuth2RequiredScope('schedule', ['user'])
+  @ApiOperation({
+    summary: 'Вернуть группу студента из профиля OAuth-пользователя',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Название группы или null, если оно отсутствует в профиле',
+    schema: { type: 'string', nullable: true, example: 'ЦИС-37' },
+  })
+  @ApiErrorResponses(
+    HttpStatus.UNAUTHORIZED,
+    HttpStatus.FORBIDDEN,
+    HttpStatus.TOO_MANY_REQUESTS,
+    HttpStatus.INTERNAL_SERVER_ERROR,
+  )
   async getMyGroup(
     @ReqAuth(ReqAuthType.OAuth) oauthPayload: UserPayloadDto | ClientPayloadDto,
   ) {

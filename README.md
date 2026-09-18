@@ -46,6 +46,14 @@ yarn start:dev
 
 Приложение использует Node.js 24.x и Yarn 1.22.x.
 
+## Документация API
+
+OpenAPI-схема доступна по `/swagger-json` и является источником актуальных
+контрактов для клиентов. Интерфейсы документации: `/swagger` и `/reference`.
+
+Для CalDAV стандартные методы описаны в OpenAPI, а `PROPFIND` и `REPORT` — в
+extension `x-webdav-methods` у соответствующего пути.
+
 ## Календарь
 
 Публичный iCalendar доступен по адресам:

@@ -7,6 +7,7 @@ export const delay = (ms: number) =>
 
 export * from './constant';
 export * from './decorator';
+export * from './dto';
 export * from './exception';
 export * from './filter';
 export * from './guard';

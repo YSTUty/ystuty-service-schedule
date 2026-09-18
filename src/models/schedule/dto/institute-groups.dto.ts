@@ -1,50 +1,62 @@
-import { ApiProperty, getSchemaPath } from '@nestjs/swagger';
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  getSchemaPath,
+} from '@nestjs/swagger';
 
 export class GroupDetailDto {
   /**
    * Номер курса
    * @example 3
    */
-  course: number;
+  @ApiProperty({ example: 3 })
+  public course: number;
   /**
    * Название группы
    * @example ЦИС-37
    */
-  name: string;
+  @ApiProperty({ example: 'ЦИС-37' })
+  public name: string;
   /**
    * ID расписания группы
    * @deprecated Использовать `groupId`
    * @example 4627
    */
-  id_schedule: number | null;
+  @ApiPropertyOptional({ example: 4627, nullable: true, deprecated: true })
+  public id_schedule: number | null;
   /**
    * ID расписания группы
    * @example 4627
    */
-  groupId: number | null;
+  @ApiPropertyOptional({ example: 4627, nullable: true })
+  public groupId: number | null;
   /**
    * Есть ли лекционная неделя
    * @example true
    */
-  hasLecture: boolean;
+  @ApiProperty({ example: true })
+  public hasLecture: boolean;
   /**
    * Название расписания
    * @example '2024/2025 Осенний семестр'
    */
-  scheduleName: string;
+  @ApiProperty({ example: '2025/2026 Осенний семестр' })
+  public scheduleName: string;
 }
 
 /**
  * Название института и массив групп
  */
 export class InstituteGroupsDto<GT = GroupDetailDto | string> {
-  id?: number;
+  @ApiPropertyOptional({ example: 53, nullable: true })
+  public id?: number;
 
   /**
    * Название института
    * @example Институт цифровых систем
    */
-  name: string;
+  @ApiProperty({ example: 'Институт цифровых систем' })
+  public name: string;
 
   /**
    * Название групп (`string`) или детальная информация (`object`) о группах при `additional=true`
@@ -61,5 +73,5 @@ export class InstituteGroupsDto<GT = GroupDetailDto | string> {
       ],
     },
   })
-  groups: GT[];
+  public groups: GT[];
 }
