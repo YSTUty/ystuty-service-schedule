@@ -89,7 +89,7 @@ export class CalendarController {
     });
     try {
       const calendar =
-        await this.calendarService.generateCalenadrForGroup(groupName);
+        await this.calendarService.generateCalendarForGroup(groupName);
       if (!calendar) {
         stopTimer('not_found');
         throw new NotFoundException('group not found by this name or id');
@@ -98,6 +98,70 @@ export class CalendarController {
       res.writeHead(200, {
         'Content-Type': 'text/calendar; charset=utf-8',
         'Content-Disposition': `attachment; filename="${encodeURIComponent(`${groupName}.ics`)}"`,
+      });
+      res.end(calendar.toString());
+      stopTimer('success');
+    } catch (error) {
+      stopTimer('error');
+      throw error;
+    }
+  }
+
+  @Get('group-id/:groupId.ical')
+  @Version('1')
+  @ApiOperation({
+    summary: 'Получить постоянный iCalendar-файл с расписанием группы по ID',
+  })
+  @ApiParam({
+    name: 'groupId',
+    required: true,
+    description:
+      'Постоянный числовой идентификатор учебной группы. Предпочтителен для подписки на календарь.',
+    type: Number,
+    example: 4627,
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'iCalendar-файл с расписанием группы по постоянному ID',
+    content: {
+      ['text/calendar']: {},
+    },
+    headers: {
+      ['Content-Disposition']: {
+        schema: {
+          type: 'string',
+          example: 'attachment; filename="group-4627.ics"',
+        },
+      },
+    },
+  })
+  async forGroupId(
+    @Param('groupId', ParseIntPipe) groupId: number,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @RealIP() ipAddress: string,
+  ) {
+    this.logger.log(
+      `Generate calendar [group:${groupId}]; (ip: ${ipAddress}) ${JSON.stringify(req.headers['user-agent'])}`,
+    );
+
+    const stopTimer = this.metricsService.startCalendarRequestTimer({
+      protocol: 'ical',
+      targetType: 'group',
+      target: groupId,
+      method: 'GET',
+    });
+    try {
+      const calendar =
+        await this.calendarService.generateCalendarForGroupId(groupId);
+      if (!calendar) {
+        stopTimer('not_found');
+        throw new NotFoundException('Group not found by this id');
+      }
+
+      res.writeHead(200, {
+        'Content-Type': 'text/calendar; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(`group-${groupId}.ics`)}"`,
       });
       res.end(calendar.toString());
       stopTimer('success');
@@ -161,7 +225,7 @@ export class CalendarController {
     });
     try {
       const calendar =
-        await this.calendarService.generateCalenadrForTeacher(teacherId);
+        await this.calendarService.generateCalendarForTeacher(teacherId);
       if (!calendar) {
         stopTimer('not_found');
         throw new NotFoundException('Teacher not found');

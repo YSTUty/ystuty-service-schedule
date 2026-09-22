@@ -60,13 +60,19 @@ extension `x-webdav-methods` у соответствующего пути.
 
 ```text
 /v1/calendar/group/:groupName.ical
+/v1/calendar/group-id/:groupId.ical
 /v1/calendar/teacher/:teacherId.ical
 ```
+
+Для постоянной подписки группы используйте `group-id/:groupId`: ID не меняется
+при смене отображаемого названия группы между курсами. Ссылка по `groupName`
+сохранена для обратной совместимости.
 
 CalDAV повторяет структуру iCalendar:
 
 ```text
 /v1/calendar/caldav/group/:groupName
+/v1/calendar/caldav/group-id/:groupId
 /v1/calendar/caldav/teacher/:teacherId
 ```
 

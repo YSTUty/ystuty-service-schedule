@@ -66,6 +66,8 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
       path: '/v1/calendar/caldav/group/{groupName}',
       resourcePath: '/v1/calendar/caldav/group/{groupName}/{resource}',
       target: 'группы',
+      targetName: 'Group',
+      isNumeric: false,
       parameter: {
         name: 'groupName',
         description: 'Название группы',
@@ -77,11 +79,27 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
       path: '/v1/calendar/caldav/teacher/{teacherId}',
       resourcePath: '/v1/calendar/caldav/teacher/{teacherId}/{resource}',
       target: 'преподавателя',
+      targetName: 'Teacher',
+      isNumeric: true,
       parameter: {
         name: 'teacherId',
         description: 'Числовой идентификатор преподавателя',
         example: 42,
         schema: { type: 'integer' },
+      },
+    },
+    {
+      path: '/v1/calendar/caldav/group-id/{groupId}',
+      resourcePath: '/v1/calendar/caldav/group-id/{groupId}/{resource}',
+      target: 'группы по постоянному ID',
+      targetName: 'GroupId',
+      isNumeric: true,
+      parameter: {
+        name: 'groupId',
+        description:
+          'Постоянный числовой идентификатор учебной группы. Предпочтителен для подписки на календарь.',
+        example: 4627,
+        schema: { type: 'integer', minimum: 1 },
       },
     },
   ];
@@ -106,10 +124,10 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
           description: `iCalendar-файл с расписанием ${targetPath.target}`,
           content: calendarContent,
         },
-        ...(targetPath.parameter.name === 'teacherId'
+        ...(targetPath.isNumeric
           ? errorResponse(
               HttpStatus.BAD_REQUEST,
-              'Некорректный числовой идентификатор преподавателя',
+              `Некорректный числовой идентификатор ${targetPath.target}`,
             )
           : {}),
         ...errorResponse(HttpStatus.UNAUTHORIZED, 'Требуется Basic Auth'),
@@ -146,33 +164,30 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
       [HttpStatus.OK]: {
         description: 'Календарь доступен',
       },
-      ...(targetPath.parameter.name === 'teacherId'
+      ...(targetPath.isNumeric
         ? errorResponse(
             HttpStatus.BAD_REQUEST,
-            'Некорректный числовой идентификатор преподавателя',
+            `Некорректный числовой идентификатор ${targetPath.target}`,
           )
         : {}),
       ...errorResponse(HttpStatus.UNAUTHORIZED, 'Требуется Basic Auth'),
       ...errorResponse(HttpStatus.NOT_FOUND, 'Календарь не найден'),
     };
-    const targetName =
-      targetPath.parameter.name === 'groupName' ? 'Group' : 'Teacher';
-
     document.paths[targetPath.path] = {
       get: {
         ...baseOperation,
-        operationId: `calendar_caldavGet${targetName}`,
+        operationId: `calendar_caldavGet${targetPath.targetName}`,
         summary: `Скачать CalDAV-календарь ${targetPath.target}`,
       },
       head: {
         ...baseOperation,
-        operationId: `calendar_caldavHead${targetName}`,
+        operationId: `calendar_caldavHead${targetPath.targetName}`,
         summary: `Проверить CalDAV-календарь ${targetPath.target}`,
         responses: headResponses,
       },
       options: createOptionsOperation(
         parameters,
-        `calendar_caldavOptions${targetName}`,
+        `calendar_caldavOptions${targetPath.targetName}`,
       ),
       'x-webdav-methods': webDavMethods,
     } as any;
@@ -180,20 +195,20 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
     document.paths[targetPath.resourcePath] = {
       get: {
         ...baseOperation,
-        operationId: `calendar_caldavGet${targetName}Resource`,
+        operationId: `calendar_caldavGet${targetPath.targetName}Resource`,
         summary: `Скачать calendar.ics ${targetPath.target}`,
         parameters: resourceParameters,
       },
       head: {
         ...baseOperation,
-        operationId: `calendar_caldavHead${targetName}Resource`,
+        operationId: `calendar_caldavHead${targetPath.targetName}Resource`,
         summary: `Проверить calendar.ics ${targetPath.target}`,
         parameters: resourceParameters,
         responses: headResponses,
       },
       options: createOptionsOperation(
         resourceParameters,
-        `calendar_caldavOptions${targetName}Resource`,
+        `calendar_caldavOptions${targetPath.targetName}Resource`,
       ),
       'x-webdav-methods': webDavMethods,
     } as any;

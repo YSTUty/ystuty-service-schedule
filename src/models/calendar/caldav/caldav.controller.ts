@@ -50,8 +50,31 @@ export class CalDavController {
         value: groupName,
         displayName: groupName,
         getCalendar: () =>
-          this.calendarService.generateCalenadrForGroup(groupName),
+          this.calendarService.generateCalendarForGroup(groupName),
         notFoundMessage: 'Group not found by this name or id',
+      },
+      resource,
+      req,
+      res,
+    );
+  }
+
+  @All(['group-id/:groupId', 'group-id/:groupId/:resource'])
+  @Version('1')
+  async handleGroupIdRequest(
+    @Param('groupId', ParseIntPipe) groupId: number,
+    @Param('resource') resource: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.handleRequest(
+      {
+        type: 'group',
+        value: groupId,
+        displayName: `group:${groupId}`,
+        getCalendar: () =>
+          this.calendarService.generateCalendarForGroupId(groupId),
+        notFoundMessage: 'Group not found by this id',
       },
       resource,
       req,
@@ -73,7 +96,7 @@ export class CalDavController {
         value: teacherId,
         displayName: `teacher:${teacherId}`,
         getCalendar: () =>
-          this.calendarService.generateCalenadrForTeacher(teacherId),
+          this.calendarService.generateCalendarForTeacher(teacherId),
         notFoundMessage: 'Teacher not found',
       },
       resource,
@@ -91,7 +114,7 @@ export class CalDavController {
       value: string | number;
       displayName: string;
       getCalendar: () => ReturnType<
-        CalendarService['generateCalenadrForGroup']
+        CalendarService['generateCalendarForGroup']
       >;
       notFoundMessage: string;
     },

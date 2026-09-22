@@ -10,10 +10,13 @@ describe('CalendarController', () => {
 
   const createController = () => {
     const calendarService = {
-      generateCalenadrForGroup: jest.fn().mockResolvedValue({
+      generateCalendarForGroup: jest.fn().mockResolvedValue({
         toString: () => 'BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n',
       }),
-      generateCalenadrForTeacher: jest.fn(),
+      generateCalendarForGroupId: jest.fn().mockResolvedValue({
+        toString: () => 'BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n',
+      }),
+      generateCalendarForTeacher: jest.fn(),
     };
     const stopTimer = jest.fn();
     const metricsService = {
@@ -51,10 +54,40 @@ describe('CalendarController', () => {
     expect(stopTimer).toHaveBeenCalledWith('success');
   });
 
+  it('records a successful persistent group iCalendar download', async () => {
+    const { controller, calendarService, metricsService, stopTimer } =
+      createController();
+    const response = createResponse();
+
+    await controller.forGroupId(
+      4627,
+      { headers: { 'user-agent': 'Jest' } } as any,
+      response as any,
+      '127.0.0.1',
+    );
+
+    expect(calendarService.generateCalendarForGroupId).toHaveBeenCalledWith(
+      4627,
+    );
+    expect(metricsService.startCalendarRequestTimer).toHaveBeenCalledWith({
+      protocol: 'ical',
+      targetType: 'group',
+      target: 4627,
+      method: 'GET',
+    });
+    expect(response.writeHead).toHaveBeenCalledWith(
+      200,
+      expect.objectContaining({
+        'Content-Disposition': 'attachment; filename="group-4627.ics"',
+      }),
+    );
+    expect(stopTimer).toHaveBeenCalledWith('success');
+  });
+
   it('records a missing group without treating it as a successful download', async () => {
     const { controller, calendarService, stopTimer } = createController();
     const response = createResponse();
-    calendarService.generateCalenadrForGroup.mockResolvedValue(null);
+    calendarService.generateCalendarForGroup.mockResolvedValue(null);
 
     await expect(
       controller.forGroup(

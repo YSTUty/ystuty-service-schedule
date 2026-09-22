@@ -24,6 +24,7 @@ import {
 import {
   Auditory,
   Exam,
+  Group,
   RaspGrWeekView,
   ScheduleSemester,
   ScheduleView,
@@ -51,6 +52,11 @@ interface CachedValue<T> {
   ttlSeconds: number | null;
 }
 
+export interface GroupIdLookupResult {
+  groupId: number;
+  groupName: string;
+}
+
 @Injectable()
 export class ScheduleService {
   private readonly logger = new Logger(ScheduleService.name);
@@ -69,6 +75,8 @@ export class ScheduleService {
     private readonly audienceRepository: Repository<Auditory>,
     @InjectRepository(ScheduleSemester)
     private readonly scheduleSemesterRepository: Repository<ScheduleSemester>,
+    @InjectRepository(Group)
+    private readonly groupRepository: Repository<Group>,
 
     private readonly redisService: RedisService,
   ) {}
@@ -407,6 +415,42 @@ export class ScheduleService {
     }
 
     return this.withCacheMetadata({ items }, false);
+  }
+
+  /**
+   * Возвращает актуальное имя группы для постоянной ссылки по её ID.
+   */
+  async getGroupNameById(groupId: number): Promise<string | null> {
+    const group = await this.groupRepository.findOneBy({ id: groupId });
+    return group?.name?.trim() || null;
+  }
+
+  /**
+   * Ищет ID учебной группы по имени для диагностики постоянных calendar-ссылок.
+   */
+  async getGroupIdByName(
+    groupName: string,
+  ): Promise<GroupIdLookupResult | null> {
+    const normalizedGroupName = groupName.trim();
+    if (!normalizedGroupName) {
+      return null;
+    }
+
+    const group = await this.groupRepository
+      .createQueryBuilder('g')
+      .select(['g.id', 'g.name'])
+      .where('LOWER(g.namegroup) = LOWER(:groupName)', {
+        groupName: normalizedGroupName,
+      })
+      .getOne();
+    if (!group?.name) {
+      return null;
+    }
+
+    return {
+      groupId: group.id,
+      groupName: group.name,
+    };
   }
 
   async getByGroupAsWeek(

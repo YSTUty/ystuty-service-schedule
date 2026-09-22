@@ -35,15 +35,42 @@ export class CalendarService {
       .ttl(60 * 60 * 24 * 1.15);
   }
 
-  public async generateCalenadrForGroup(groupName: string) {
-    const schedule = await this.scheduleService.getByGroup(groupName);
+  public async generateCalendarForGroup(groupName: string) {
+    return this.buildCalendarForGroup(
+      groupName,
+      `${xEnv.CUSTOM_CALENDAR_URL}/group/${groupName}.ical`,
+      () => groupName,
+    );
+  }
+
+  /**
+   * Генерирует календарь по постоянному ID группы, сохраняя в нём её
+   * актуальное отображаемое имя.
+   */
+  public async generateCalendarForGroupId(groupId: number) {
+    return this.buildCalendarForGroup(
+      groupId,
+      `${xEnv.CUSTOM_CALENDAR_URL}/group-id/${groupId}.ical`,
+      () => this.scheduleService.getGroupNameById(groupId),
+    );
+  }
+
+  /**
+   * Создаёт календарь группы для legacy-ссылки по имени и постоянной — по ID.
+   */
+  private async buildCalendarForGroup(
+    groupIdOrName: number | string,
+    source: string,
+    getGroupName: () => string | null | Promise<string | null>,
+  ) {
+    const schedule = await this.scheduleService.getByGroup(groupIdOrName);
     if (!schedule) {
       return null;
     }
-
+    const groupName = (await getGroupName()) || String(groupIdOrName);
     const calendar = this.generateCalendar()
       .name(`YSTUty [${groupName}]`)
-      .source(`${xEnv.CUSTOM_CALENDAR_URL}/group/${groupName}.ical`)
+      .source(source)
       .description(`Расписание занятий ЯГТУ для группы ${groupName}`);
 
     for (const lesson of schedule.items.flatMap((e) =>
@@ -74,7 +101,7 @@ export class CalendarService {
     return calendar;
   }
 
-  public async generateCalenadrForTeacher(teacherId: number) {
+  public async generateCalendarForTeacher(teacherId: number) {
     const schedule = await this.scheduleService.getByTeacher(teacherId);
     if (!schedule) {
       return null;

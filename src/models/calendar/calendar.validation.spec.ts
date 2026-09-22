@@ -12,8 +12,9 @@ import { CalendarController } from './calendar.controller';
 import { CalendarService } from './calendar.service';
 
 const calendarService = {
-  generateCalenadrForGroup: jest.fn(),
-  generateCalenadrForTeacher: jest.fn(),
+  generateCalendarForGroup: jest.fn(),
+  generateCalendarForGroupId: jest.fn(),
+  generateCalendarForTeacher: jest.fn(),
 };
 const metricsService = {
   startCalendarRequestTimer: jest.fn(),
@@ -56,7 +57,24 @@ describe('Calendar teacherId validation', () => {
       .get('/v1/calendar/teacher/not-a-number.ical')
       .expect(400);
 
-    expect(calendarService.generateCalenadrForTeacher).not.toHaveBeenCalled();
+    expect(calendarService.generateCalendarForTeacher).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-numeric persistent group ID before generating a calendar', async () => {
+    await request(app.getHttpServer())
+      .get('/v1/calendar/group-id/not-a-number.ical')
+      .expect(400);
+
+    expect(calendarService.generateCalendarForGroupId).not.toHaveBeenCalled();
+  });
+
+  it('rejects a non-numeric persistent CalDAV group ID before generating a calendar', async () => {
+    await request(app.getHttpServer())
+      .get('/v1/calendar/caldav/group-id/not-a-number')
+      .auth('calendar-client', '')
+      .expect(400);
+
+    expect(calendarService.generateCalendarForGroupId).not.toHaveBeenCalled();
   });
 
   it('rejects a non-numeric CalDAV teacherId before generating a calendar', async () => {
@@ -65,6 +83,6 @@ describe('Calendar teacherId validation', () => {
       .auth('calendar-client', '')
       .expect(400);
 
-    expect(calendarService.generateCalenadrForTeacher).not.toHaveBeenCalled();
+    expect(calendarService.generateCalendarForTeacher).not.toHaveBeenCalled();
   });
 });

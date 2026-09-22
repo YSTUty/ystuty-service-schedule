@@ -18,10 +18,13 @@ describe('CalDavController', () => {
 
   const createController = () => {
     const calendarService = {
-      generateCalenadrForGroup: jest.fn().mockResolvedValue({
+      generateCalendarForGroup: jest.fn().mockResolvedValue({
         toString: () => 'BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n',
       }),
-      generateCalenadrForTeacher: jest.fn().mockResolvedValue({
+      generateCalendarForGroupId: jest.fn().mockResolvedValue({
+        toString: () => 'BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n',
+      }),
+      generateCalendarForTeacher: jest.fn().mockResolvedValue({
         toString: () => 'BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n',
       }),
     };
@@ -70,6 +73,36 @@ describe('CalDavController', () => {
     expect(stopTimer).toHaveBeenCalledWith('success');
   });
 
+  it('returns a persistent group calendar through CalDAV', async () => {
+    const { controller, calendarService, metricsService, stopTimer } =
+      createController();
+    const response = createResponse();
+    const request = {
+      header: jest.fn(),
+      method: 'GET',
+      originalUrl: '/v1/calendar/caldav/group-id/4627/calendar.ics',
+    };
+
+    await controller.handleGroupIdRequest(
+      4627,
+      'calendar.ics',
+      request as any,
+      response as any,
+    );
+
+    expect(calendarService.generateCalendarForGroupId).toHaveBeenCalledWith(
+      4627,
+    );
+    expect(metricsService.startCalendarRequestTimer).toHaveBeenCalledWith({
+      protocol: 'caldav',
+      targetType: 'group',
+      target: 4627,
+      method: 'GET',
+    });
+    expect(response.status).toHaveBeenCalledWith(200);
+    expect(stopTimer).toHaveBeenCalledWith('success');
+  });
+
   it('rejects write methods', async () => {
     const { controller } = createController();
     const response = createResponse();
@@ -110,7 +143,7 @@ describe('CalDavController', () => {
       response as any,
     );
 
-    expect(calendarService.generateCalenadrForTeacher).toHaveBeenCalledWith(42);
+    expect(calendarService.generateCalendarForTeacher).toHaveBeenCalledWith(42);
     expect(metricsService.startCalendarRequestTimer).toHaveBeenCalledWith({
       protocol: 'caldav',
       targetType: 'teacher',

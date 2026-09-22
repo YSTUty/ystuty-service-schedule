@@ -12,12 +12,17 @@ describe('ScheduleService', () => {
     find: jest.fn(),
     findOneBy: jest.fn(),
   };
+  const groupRepository = {
+    createQueryBuilder: jest.fn(),
+    findOneBy: jest.fn(),
+  };
   const createQueryBuilder = () => {
     const queryBuilder = {
       addOrderBy: jest.fn(),
       addSelect: jest.fn(),
       andWhere: jest.fn(),
       getMany: jest.fn(),
+      getOne: jest.fn(),
       getRawMany: jest.fn(),
       innerJoin: jest.fn(),
       leftJoin: jest.fn(),
@@ -28,6 +33,7 @@ describe('ScheduleService', () => {
     for (const method of Object.values(queryBuilder)) {
       if (
         method !== queryBuilder.getMany &&
+        method !== queryBuilder.getOne &&
         method !== queryBuilder.getRawMany
       ) {
         method.mockReturnValue(queryBuilder);
@@ -44,6 +50,7 @@ describe('ScheduleService', () => {
       {} as any,
       {} as any,
       scheduleSemesterRepository as any,
+      groupRepository as any,
       { redis } as any,
     );
 
@@ -151,6 +158,30 @@ describe('ScheduleService', () => {
     });
   });
 
+  it('returns the current trimmed group name for a persistent calendar link', async () => {
+    const service = createService();
+    groupRepository.findOneBy.mockResolvedValue({ name: ' ЦИС-26 ' });
+
+    await expect(service.getGroupNameById(4627)).resolves.toBe('ЦИС-26');
+    expect(groupRepository.findOneBy).toHaveBeenCalledWith({ id: 4627 });
+  });
+
+  it('finds the persistent group ID by its name', async () => {
+    const service = createService();
+    const queryBuilder = createQueryBuilder();
+    groupRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+    queryBuilder.getOne.mockResolvedValue({ id: 4627, name: 'ЦИС-26' });
+
+    await expect(service.getGroupIdByName(' ЦИС-26 ')).resolves.toEqual({
+      groupId: 4627,
+      groupName: 'ЦИС-26',
+    });
+    expect(queryBuilder.where).toHaveBeenCalledWith(
+      'LOWER(g.namegroup) = LOWER(:groupName)',
+      { groupName: 'ЦИС-26' },
+    );
+  });
+
   it('looks up exams by group ID when the schedule request uses an ID', async () => {
     const scheduleQueryBuilder = createQueryBuilder();
     const examQueryBuilder = createQueryBuilder();
@@ -174,6 +205,7 @@ describe('ScheduleService', () => {
       {} as any,
       {} as any,
       scheduleSemesterRepository as any,
+      {} as any,
       { redis } as any,
     );
     (service as any).allowCaching = false;
