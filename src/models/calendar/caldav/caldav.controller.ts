@@ -4,6 +4,7 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
+  ParseIntPipe,
   Req,
   Res,
   UseGuards,
@@ -61,7 +62,7 @@ export class CalDavController {
   @All(['teacher/:teacherId', 'teacher/:teacherId/:resource'])
   @Version('1')
   async handleTeacherRequest(
-    @Param('teacherId') teacherId: number,
+    @Param('teacherId', ParseIntPipe) teacherId: number,
     @Param('resource') resource: string | undefined,
     @Req() req: Request,
     @Res() res: Response,

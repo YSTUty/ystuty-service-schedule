@@ -5,6 +5,7 @@ import {
   Logger,
   NotFoundException,
   Param,
+  ParseIntPipe,
   Req,
   Res,
   Version,
@@ -23,6 +24,7 @@ import { CalendarService } from './calendar.service';
 @ApiTags('calendar')
 @Controller('/calendar')
 @ApiErrorResponses(
+  HttpStatus.BAD_REQUEST,
   HttpStatus.NOT_FOUND,
   HttpStatus.TOO_MANY_REQUESTS,
   HttpStatus.INTERNAL_SERVER_ERROR,
@@ -142,7 +144,7 @@ export class CalendarController {
     },
   })
   async getCalendarForTeacherICAL(
-    @Param('teacherId') teacherId: number,
+    @Param('teacherId', ParseIntPipe) teacherId: number,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
     @RealIP() ipAddress: string,

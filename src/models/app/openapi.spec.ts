@@ -86,5 +86,17 @@ describe('OpenAPI document', () => {
         }),
       }),
     );
+    const teacherCalDavGet = document.paths[
+      '/v1/calendar/caldav/teacher/{teacherId}'
+    ].get!;
+    expect(teacherCalDavGet.parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'teacherId',
+          schema: { type: 'integer' },
+        }),
+      ]),
+    );
+    expect(teacherCalDavGet.responses).toHaveProperty('400');
   });
 });

@@ -81,7 +81,7 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
         name: 'teacherId',
         description: 'Числовой идентификатор преподавателя',
         example: 42,
-        schema: { type: 'number' },
+        schema: { type: 'integer' },
       },
     },
   ];
@@ -106,6 +106,12 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
           description: `iCalendar-файл с расписанием ${targetPath.target}`,
           content: calendarContent,
         },
+        ...(targetPath.parameter.name === 'teacherId'
+          ? errorResponse(
+              HttpStatus.BAD_REQUEST,
+              'Некорректный числовой идентификатор преподавателя',
+            )
+          : {}),
         ...errorResponse(HttpStatus.UNAUTHORIZED, 'Требуется Basic Auth'),
         ...errorResponse(HttpStatus.NOT_FOUND, 'Календарь не найден'),
       },
@@ -140,6 +146,12 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
       [HttpStatus.OK]: {
         description: 'Календарь доступен',
       },
+      ...(targetPath.parameter.name === 'teacherId'
+        ? errorResponse(
+            HttpStatus.BAD_REQUEST,
+            'Некорректный числовой идентификатор преподавателя',
+          )
+        : {}),
       ...errorResponse(HttpStatus.UNAUTHORIZED, 'Требуется Basic Auth'),
       ...errorResponse(HttpStatus.NOT_FOUND, 'Календарь не найден'),
     };
