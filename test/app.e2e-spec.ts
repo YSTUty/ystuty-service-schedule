@@ -177,6 +177,29 @@ describeDatabaseContract('Schedule API database contract (e2e)', () => {
     expect(firstLesson.isDivision).toEqual(expect.any(Boolean));
     expect(firstLesson).not.toHaveProperty('trainingId');
 
+    const detailedGroupsResponse = await request(server)
+      .get('/v1/schedule/actual_groups?additional=true')
+      .expect(200);
+    const groupId = detailedGroupsResponse.body.items
+      .flatMap(
+        (institute: { groups: ({ groupId: number | null } | string)[] }) =>
+          institute.groups,
+      )
+      .find(
+        (group: unknown): group is { groupId: number } =>
+          typeof group === 'object' &&
+          group !== null &&
+          typeof (group as { groupId?: unknown }).groupId === 'number',
+      )?.groupId;
+    expect(groupId).toEqual(expect.any(Number));
+
+    const groupByIdResponse = await request(server)
+      .get(`/v1/schedule/group/${groupId}`)
+      .expect(200);
+    expectLegacyCacheResponse(groupByIdResponse.body);
+    expect(groupByIdResponse.body.items).toEqual(expect.any(Array));
+    expect(groupByIdResponse.body.items.length).toBeGreaterThan(0);
+
     const teachersResponse = await request(server)
       .get('/v1/schedule/actual_teachers')
       .expect(200);

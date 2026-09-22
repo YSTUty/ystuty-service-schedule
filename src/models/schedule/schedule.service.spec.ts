@@ -12,6 +12,29 @@ describe('ScheduleService', () => {
     find: jest.fn(),
     findOneBy: jest.fn(),
   };
+  const createQueryBuilder = () => {
+    const queryBuilder = {
+      addOrderBy: jest.fn(),
+      addSelect: jest.fn(),
+      andWhere: jest.fn(),
+      getMany: jest.fn(),
+      getRawMany: jest.fn(),
+      innerJoin: jest.fn(),
+      leftJoin: jest.fn(),
+      orderBy: jest.fn(),
+      select: jest.fn(),
+      where: jest.fn(),
+    };
+    for (const method of Object.values(queryBuilder)) {
+      if (
+        method !== queryBuilder.getMany &&
+        method !== queryBuilder.getRawMany
+      ) {
+        method.mockReturnValue(queryBuilder);
+      }
+    }
+    return queryBuilder;
+  };
 
   const createService = () =>
     new ScheduleService(
@@ -126,5 +149,51 @@ describe('ScheduleService', () => {
         id: 'DESC',
       },
     });
+  });
+
+  it('looks up exams by group ID when the schedule request uses an ID', async () => {
+    const scheduleQueryBuilder = createQueryBuilder();
+    const examQueryBuilder = createQueryBuilder();
+    scheduleQueryBuilder.getMany.mockResolvedValue([]);
+    examQueryBuilder.getRawMany.mockResolvedValue([
+      {
+        date: new Date('2026-09-01T08:30:00.000Z'),
+        lessonName: 'Экзамен',
+        auditoryName: 'В-201',
+        note: null,
+      },
+    ]);
+    const service = new ScheduleService(
+      {
+        createQueryBuilder: jest.fn(() => scheduleQueryBuilder),
+      } as any,
+      {} as any,
+      {
+        createQueryBuilder: jest.fn(() => examQueryBuilder),
+      } as any,
+      {} as any,
+      {} as any,
+      scheduleSemesterRepository as any,
+      { redis } as any,
+    );
+    (service as any).allowCaching = false;
+
+    await expect(service.getByGroup(4627)).resolves.toEqual(
+      expect.objectContaining({
+        items: expect.any(Array),
+      }),
+    );
+
+    expect(scheduleQueryBuilder.andWhere).toHaveBeenCalledWith('idgr = :id', {
+      id: 4627,
+    });
+    expect(examQueryBuilder.andWhere).toHaveBeenCalledWith(
+      'e.idgroup = :groupId',
+      { groupId: 4627 },
+    );
+    expect(examQueryBuilder.andWhere).not.toHaveBeenCalledWith(
+      'LOWER(g.namegroup) = LOWER(:namegroup)',
+      expect.anything(),
+    );
   });
 });

@@ -323,6 +323,9 @@ export class ScheduleService {
 
   async getByGroup(groupIdOrName: number | string, idSchedule: number = 0) {
     const cacheKey = `byGroup:${idSchedule}:${String(groupIdOrName).toLowerCase()}`;
+    const groupId = Number(groupIdOrName);
+    const isGroupId = Number.isInteger(groupId) && groupId > 0;
+
     if (this.allowCaching) {
       const cached = await this.readCache<OneWeekDto[]>(cacheKey);
       if (cached) {
@@ -343,8 +346,8 @@ export class ScheduleService {
       .addOrderBy('nned', 'ASC')
       .addOrderBy('npar', 'ASC');
 
-    if (!isNaN(Number(groupIdOrName))) {
-      qb.andWhere('idgr = :id', { id: groupIdOrName });
+    if (isGroupId) {
+      qb.andWhere('idgr = :id', { id: groupId });
     } else {
       qb.andWhere('LOWER(namegr) = LOWER(:name)', {
         name: groupIdOrName,
@@ -381,9 +384,13 @@ export class ScheduleService {
         .leftJoin('prep_examen', 'pe', 'pe.idexam = e.idexam')
         .leftJoin('prep', 'pr', 'pe.idprep = pr.idprep');
 
-      qbExam.andWhere('LOWER(g.namegroup) = LOWER(:namegroup)', {
-        namegroup: groupIdOrName,
-      });
+      if (isGroupId) {
+        qbExam.andWhere('e.idgroup = :groupId', { groupId });
+      } else {
+        qbExam.andWhere('LOWER(g.namegroup) = LOWER(:namegroup)', {
+          namegroup: groupIdOrName,
+        });
+      }
       const exams: IExamDay[] = await qbExam.getRawMany();
       if (exams.length > 0) {
         this.injectExams(weeks, exams, 'group');
