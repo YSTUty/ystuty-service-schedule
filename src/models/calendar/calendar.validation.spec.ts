@@ -91,7 +91,6 @@ describe('Calendar teacherId validation', () => {
   it('lets CalDAV OPTIONS reach the controller instead of ending at CORS', async () => {
     await request(app.getHttpServer())
       .options(`/v1/calendar/caldav/group/${encodeURIComponent('ЦИС-27')}`)
-      .auth('calendar-client', '')
       .expect(204)
       .expect('dav', '1, calendar-access')
       .expect('allow', 'OPTIONS, PROPFIND, REPORT, GET, HEAD');

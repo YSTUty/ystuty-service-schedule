@@ -32,7 +32,7 @@ const createOptionsOperation = (
   operationId,
   tags: ['caldav'],
   summary: 'Получить поддерживаемые CalDAV-методы',
-  security: getSecurity,
+  security: [],
   parameters,
   responses: {
     [HttpStatus.NO_CONTENT]: {
@@ -52,7 +52,6 @@ const createOptionsOperation = (
         },
       },
     },
-    ...errorResponse(HttpStatus.UNAUTHORIZED, 'Требуется Basic Auth'),
   },
 });
 

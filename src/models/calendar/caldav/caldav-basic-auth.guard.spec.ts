@@ -3,12 +3,13 @@ import { UnauthorizedException } from '@nestjs/common';
 import { CalDavBasicAuthGuard } from './caldav-basic-auth.guard';
 
 describe('CalDavBasicAuthGuard', () => {
-  const createContext = (authorization?: string) => {
+  const createContext = (authorization?: string, method = 'GET') => {
     const res = { setHeader: jest.fn() };
     return {
       switchToHttp: () => ({
         getRequest: () => ({
           headers: { authorization },
+          method,
           params: { groupName: 'ЦИС-16' },
         }),
         getResponse: () => res,
@@ -23,6 +24,13 @@ describe('CalDavBasicAuthGuard', () => {
     );
 
     expect(new CalDavBasicAuthGuard().canActivate(context as any)).toBeTruthy();
+  });
+
+  it('allows unauthenticated OPTIONS for CalDAV discovery', () => {
+    const context = createContext(undefined, 'OPTIONS');
+
+    expect(new CalDavBasicAuthGuard().canActivate(context as any)).toBeTruthy();
+    expect(context.res.setHeader).not.toHaveBeenCalled();
   });
 
   it('challenges a request without valid Basic authorization', () => {

@@ -108,6 +108,10 @@ describe('OpenAPI document', () => {
       ]),
     );
     expect(groupIdCalDavGet.responses).toHaveProperty('400');
+    expect(
+      document.paths['/v1/calendar/caldav/group-id/{groupId}'].options!
+        .security,
+    ).toStrictEqual([]);
     expect(document.paths['/v1/calendar/group-id/{groupId}.ical']).toEqual(
       expect.objectContaining({
         get: expect.objectContaining({
