@@ -169,7 +169,7 @@ export class ScheduleService {
     let info: {
       items: any[];
       count?: number;
-    } = null;
+    } | null = null;
     if (type === 'group' || type === 'institute') {
       info = await this.getGroups(idSchedule, false);
     } else if (type === 'audiences') {
@@ -248,7 +248,7 @@ export class ScheduleService {
     const raws = await qb.getRawMany();
 
     const rowsByFaculty: Record<number, InstituteGroupsDto> = {};
-    let defaultNamerasp: string = null;
+    let defaultNamerasp: string | null = null;
 
     for (const raw of raws) {
       const {
@@ -502,7 +502,11 @@ export class ScheduleService {
       return null;
     }
 
-    const items = [];
+    const items: {
+      weekType: WeekNumberType;
+      week: RaspGrWeekView[];
+      isLecture: boolean;
+    }[] = [];
 
     // 1-7
     for (
@@ -779,10 +783,10 @@ export class ScheduleService {
       prep2: number;
     }>[];
     for (const item of raspz) {
-      if (item.teacherName_1) {
+      if (item.teacherName_1 && item.prep1 !== undefined) {
         map.set(item.prep1, item.teacherName_1);
       }
-      if (item.teacherName_2) {
+      if (item.teacherName_2 && item.prep2 !== undefined) {
         map.set(item.prep2, item.teacherName_2);
       }
     }
@@ -852,10 +856,10 @@ export class ScheduleService {
       audi2: number;
     }>[];
     for (const item of raspz) {
-      if (item.nameaudi) {
+      if (item.nameaudi && item.audi !== undefined) {
         audiences.set(item.audi, item.nameaudi);
       }
-      if (item.nameaudi2) {
+      if (item.nameaudi2 && item.audi2 !== undefined) {
         audiences.set(item.audi2, item.nameaudi2);
       }
     }
@@ -932,7 +936,7 @@ export class ScheduleService {
     const parityOnWeekMap: Map<number, WeekParityType> = new Map();
     const parityOnWeek = (trainingId: number): WeekParityType => {
       if (parityOnWeekMap.has(trainingId)) {
-        return parityOnWeekMap.get(trainingId);
+        return parityOnWeekMap.get(trainingId) ?? WeekParityType.CUSTOM;
       }
       let total = 0;
       let odd = 0;
@@ -979,7 +983,7 @@ export class ScheduleService {
         trainingId,
         lectureFlag,
       } = raw;
-      let { lessonName } = raw;
+      let lessonName: string | null = raw.lessonName;
 
       let curWeek = weeks.find((e) => e.number === weekNumber);
       if (!curWeek) {
@@ -1020,7 +1024,7 @@ export class ScheduleService {
         );
       if (curLesson) {
         if (rType !== 'group') {
-          curLesson.groups.push(groupName);
+          (curLesson.groups ??= []).push(groupName);
         }
         continue;
       }
@@ -1061,7 +1065,7 @@ export class ScheduleService {
         lessonTypeShortName,
         additionalInfo,
       });
-      lessonName = lessonType.lessonName;
+      lessonName = lessonType.lessonName ?? null;
       const { subInfo, type } = lessonType;
 
       const lesson = new LessonDto({
@@ -1114,7 +1118,7 @@ export class ScheduleService {
     rType: 'group' | 'teacher' | 'audience' = 'group',
   ) {
     for (const exam of exams) {
-      let targetDay: OneDayDto = null;
+      let targetDay: OneDayDto | null = null;
 
       let isFound = false;
       for (const { days } of schedule) {
@@ -1183,11 +1187,12 @@ export class ScheduleService {
 
       let weekIndex = schedule.findIndex((e) => e.number === weekNumber);
       if (weekIndex === -1) {
-        const newWeek = {
+        const newWeek: OneWeekDto = {
           number: weekNumber,
           days: [],
         };
-        weekIndex += schedule.push(newWeek);
+        schedule.push(newWeek);
+        weekIndex = schedule.length - 1;
       }
       schedule[weekIndex].days.push(oneDayExam);
     }

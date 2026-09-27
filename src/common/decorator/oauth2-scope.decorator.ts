@@ -42,11 +42,13 @@ export function OAuth2RequiredScope(
   subs?: string[],
 ) {
   const space = Array.isArray(spaceOrScopes) ? null : spaceOrScopes;
-  const scopes = Array.isArray(spaceOrScopes) ? spaceOrScopes : scopesOrSubs;
+  const scopes = Array.isArray(spaceOrScopes)
+    ? spaceOrScopes
+    : (scopesOrSubs ?? []);
   subs ??=
     Array.isArray(spaceOrScopes) && Array.isArray(scopesOrSubs)
       ? scopesOrSubs
-      : null;
+      : undefined;
 
   const metadataValue = scopes
     .map((e) => (space ? `${space}:${e}` : e))

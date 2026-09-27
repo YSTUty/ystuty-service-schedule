@@ -3,6 +3,34 @@ import { Logger } from '@nestjs/common';
 import { ThrottlerBehindProxyGuard } from './throttler-behind-proxy.guard';
 
 describe('ThrottlerBehindProxyGuard', () => {
+  const createGuard = () =>
+    new ThrottlerBehindProxyGuard(
+      {
+        throttlers: [{ ttl: 1_000, limit: 1 }],
+      },
+      { increment: jest.fn() } as any,
+      { getAllAndOverride: jest.fn() } as any,
+    );
+
+  it('does not fail when an OAuth token has no scopes', async () => {
+    const guard = createGuard();
+    const context = {
+      getType: () => 'http',
+      switchToHttp: () => ({
+        getRequest: () => ({
+          oAuth: {
+            accessToken: {
+              isRevoked: false,
+              scopes: null,
+            },
+          },
+        }),
+      }),
+    };
+
+    await expect((guard as any).shouldSkip(context)).resolves.toBe(false);
+  });
+
   it('allows the request when Redis rate-limit storage is unavailable', async () => {
     const storage = {
       increment: jest.fn().mockRejectedValue(new Error('Redis is unavailable')),

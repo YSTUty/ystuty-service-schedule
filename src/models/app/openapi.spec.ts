@@ -44,8 +44,8 @@ describe('OpenAPI document', () => {
 
   it('documents public response schemas, OAuth scopes and CalDAV extension', () => {
     const document = createOpenApiDocument(app);
-    const schemas = document.components.schemas as Record<string, any>;
-    const securitySchemes = document.components.securitySchemes as Record<
+    const schemas = document.components!.schemas as Record<string, any>;
+    const securitySchemes = document.components!.securitySchemes as Record<
       string,
       any
     >;
@@ -67,7 +67,7 @@ describe('OpenAPI document', () => {
         items: expect.any(Object),
       }),
     );
-    expect(document.paths['/getMyGroup'].get.security).toStrictEqual([
+    expect(document.paths['/getMyGroup'].get!.security).toStrictEqual([
       { oauth2: ['schedule:user'] },
       { bearer: ['schedule:user'] },
       { access_token: ['schedule:user'] },

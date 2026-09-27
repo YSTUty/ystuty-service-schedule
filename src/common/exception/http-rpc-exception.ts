@@ -11,7 +11,7 @@ export class HttpRpcException extends HttpException {
   constructor(private readonly error: Record<string, any> | Error) {
     let response: any;
     let status: number;
-    let options: HttpExceptionOptions;
+    let options: HttpExceptionOptions | undefined;
 
     // || 'syscall' in error
     if (!error || error instanceof Error || !(error.statusCode || error.code)) {

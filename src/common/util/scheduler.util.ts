@@ -1,14 +1,14 @@
 import { LessonFlags } from '@my-interfaces';
 
 export interface LessonTypeAnalysisInput {
-  lessonName?: string;
-  lessonTypeShortName?: string;
-  additionalInfo?: string;
+  lessonName?: string | null;
+  lessonTypeShortName?: string | null;
+  additionalInfo?: string | null;
 }
 
 export interface LessonTypeAnalysis {
-  lessonName?: string;
-  subInfo?: string;
+  lessonName?: string | null;
+  subInfo?: string | null;
   type: LessonFlags;
 }
 
@@ -94,10 +94,10 @@ export const getLessonTypeFromStr = (type: string): LessonFlags => {
  * стандартное сокращение типа (`abrwz`).
  */
 const getLessonTypeFromContent = (
-  ...values: Array<string | undefined>
+  ...values: Array<string | null | undefined>
 ): LessonFlags => {
   const sourceTexts = values
-    .filter(Boolean)
+    .filter((value): value is string => typeof value === 'string')
     .map((value) => value.trim().toLowerCase());
   const hasText = (pattern: string | RegExp) =>
     sourceTexts.some((value) =>
@@ -162,7 +162,7 @@ export const analyzeLessonType = ({
   let lessonName = sourceLessonName;
   const typeGroups =
     additionalInfo?.match(LESSON_TYPE_INFO_REG_EXP)?.groups || {};
-  let subInfo = typeGroups.subInfo;
+  let subInfo: string | null | undefined = typeGroups.subInfo;
 
   let type: LessonFlags = [
     lessonTypeShortName || '',

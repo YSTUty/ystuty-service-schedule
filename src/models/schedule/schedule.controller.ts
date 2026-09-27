@@ -129,14 +129,18 @@ export class ScheduleController {
     );
     const results = [institutes, groups, teachers, audiences];
     const isFullyCached = results.every((result) => result.cache.isCached);
+    const cachedTtlSeconds = results
+      .map((result) => result.cache.ttlSeconds)
+      .filter((ttlSeconds): ttlSeconds is number => ttlSeconds !== null);
 
     return {
       isCache: results.some((result) => result.isCache),
       cache: {
         isCached: isFullyCached,
-        ttlSeconds: isFullyCached
-          ? Math.min(...results.map((result) => result.cache.ttlSeconds))
-          : null,
+        ttlSeconds:
+          isFullyCached && cachedTtlSeconds.length === results.length
+            ? Math.min(...cachedTtlSeconds)
+            : null,
       },
       institutes: institutes.count,
       groups: groups.count,

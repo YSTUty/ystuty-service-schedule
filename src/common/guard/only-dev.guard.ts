@@ -19,9 +19,13 @@ export class OnlyDevGuard implements CanActivate {
   }
 
   async canActivate(context: ExecutionContext) {
-    const [isOnlyDev, checkIt] = this.reflector.getAllAndMerge<
+    const reflector = this.reflector ?? new Reflector();
+    const [isOnlyDev, checkIt] = reflector.getAllAndMerge<
       [boolean, ((req: Request) => boolean | Promise<boolean>) | undefined]
-    >(IS_ONLY_DEV, [context.getHandler(), context.getClass()]);
+    >(IS_ONLY_DEV, [context.getHandler(), context.getClass()]) ?? [
+      false,
+      undefined,
+    ];
 
     const req = context.switchToHttp().getRequest<Request>();
 

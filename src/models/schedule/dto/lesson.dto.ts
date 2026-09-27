@@ -26,14 +26,14 @@ export class LessonDto {
    */
   @Expose()
   @ApiProperty({ example: 1, minimum: 1 })
-  public number: number;
+  public number: number | null;
   /**
    * Временной интервал пары
    * @example '08:30-10:00'
    */
   @Expose()
   @ApiProperty({ example: '08:30-10:00' })
-  public timeRange: string;
+  public timeRange: string | null;
   /**
    * Timestamp начала пары
    * @example '2024-06-04T09:20:00.000Z'
@@ -45,7 +45,7 @@ export class LessonDto {
     nullable: true,
     type: String,
   })
-  public startAt?: string | Date;
+  public startAt: string | Date;
   /**
    * Timestamp конца пары
    * @example '2024-06-04T12:30:00.000Z'
@@ -57,7 +57,7 @@ export class LessonDto {
     nullable: true,
     type: String,
   })
-  public endAt?: string | Date;
+  public endAt: string | Date;
   /**
    * Оригинальная строка с порядковым номером пары на дню со интервалом времени
    *
@@ -65,7 +65,7 @@ export class LessonDto {
    */
   @Expose()
   @ApiProperty({ example: '1. 08:30-10:00' })
-  public originalTimeTitle: string;
+  public originalTimeTitle: string | null;
   /**
    * Тип четности пары на неделе
    */
@@ -75,7 +75,7 @@ export class LessonDto {
     enumName: 'WeekParityType',
     example: WeekParityType.ODD,
   })
-  public parity: WeekParityType;
+  public parity: WeekParityType | null;
   /**
    * Пара дистанционно
    */
@@ -87,7 +87,7 @@ export class LessonDto {
    */
   @Expose()
   @ApiPropertyOptional({ example: 'Математика', nullable: true })
-  public lessonName?: string;
+  public lessonName?: string | null;
   /**
    * Флаг типа пары
    */
@@ -110,13 +110,13 @@ export class LessonDto {
    */
   @Expose()
   @ApiProperty({ example: 2, minimum: 0 })
-  public duration: number;
+  public duration: number | null;
   /**
    * Длительность пары в минутах
    */
   @Expose()
   @ApiProperty({ example: 90, minimum: 0 })
-  public durationMinutes: number;
+  public durationMinutes: number | null;
   /**
    * Разделение по подгруппам
    */
@@ -140,13 +140,13 @@ export class LessonDto {
    */
   @Expose()
   @ApiPropertyOptional({ example: 'В-201', nullable: true })
-  public auditoryName?: string;
+  public auditoryName?: string | null;
   /**
    * Буква корпуса и номер дополнительной аудитори
    */
   @Expose()
   @ApiPropertyOptional({ example: 'В-202', nullable: true })
-  public additionalAuditoryName?: string;
+  public additionalAuditoryName?: string | null;
   /**
    * ФИО преподователя
    *
@@ -154,11 +154,11 @@ export class LessonDto {
    */
   @Expose()
   @ApiPropertyOptional({ example: 'Иванов ИИ', nullable: true })
-  public teacherName?: string;
+  public teacherName?: string | null;
 
   @Expose()
   @ApiPropertyOptional({ example: 42, nullable: true })
-  public teacherId?: number;
+  public teacherId?: number | null;
   /**
    * ФИО второго преподователя
    *
@@ -166,17 +166,17 @@ export class LessonDto {
    */
   @Expose()
   @ApiPropertyOptional({ example: 'Петров ПП', nullable: true })
-  public additionalTeacherName?: string;
+  public additionalTeacherName?: string | null;
 
   @Expose()
   @ApiPropertyOptional({ example: 84, nullable: true })
-  public additionalTeacherId?: number;
+  public additionalTeacherId?: number | null;
   /**
    * Дополнительная информация
    */
   @Expose()
   @ApiPropertyOptional({ example: 'Дистант', nullable: true })
-  public subInfo?: string;
+  public subInfo?: string | null;
 
   constructor(input?: Partial<LessonDto>) {
     if (input) {

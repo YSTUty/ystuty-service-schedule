@@ -21,8 +21,9 @@ export const NODE_ENV: EnvType =
 export const APP_NAME: string =
   process.env.APP_NAME || '[YSTUty.Service] Schedule';
 export const APP_DOMAIN: string = process.env.APP_DOMAIN || '127.0.0.1';
-export const SERVER_PORT: number = +process.env.SERVER_PORT || 8080;
-export const EXTERNAL_PORT: number = +process.env.EXTERNAL_PORT || SERVER_PORT;
+export const SERVER_PORT: number = Number(process.env.SERVER_PORT) || 8080;
+export const EXTERNAL_PORT: number =
+  Number(process.env.EXTERNAL_PORT) || SERVER_PORT;
 export const SERVER_URL: string =
   process.env.SERVER_URL || `http://${APP_DOMAIN}:${EXTERNAL_PORT}`;
 export const CUSTOM_CALENDAR_URL: string =
@@ -30,11 +31,11 @@ export const CUSTOM_CALENDAR_URL: string =
 
 // * oAuth server
 export const MS_OAUTH_SERVER_PORT: number =
-  +process.env.MS_OAUTH_SERVER_PORT || 3000;
+  Number(process.env.MS_OAUTH_SERVER_PORT) || 3000;
 export const MS_OAUTH_SERVER_HOST: string =
   process.env.MS_OAUTH_SERVER_HOST ?? 'ms_oauth_server';
 export const OAUTH_SERVER_SERVICE_TOKEN: string =
-  process.env.OAUTH_SERVER_SERVICE_TOKEN;
+  process.env.OAUTH_SERVER_SERVICE_TOKEN ?? '';
 
 // * oAuth Client
 export const OAUTH_URL = process.env.OAUTH_URL || 'http://ystuty_oauth';
@@ -82,7 +83,7 @@ export const TYPEORM_CONFIG = {
   ...mssqlDefaults,
   logging: process.env.TYPEORM_LOGGING === 'true',
   host: process.env.TYPEORM_HOST,
-  port: +process.env.TYPEORM_PORT || 1433,
+  port: Number(process.env.TYPEORM_PORT) || 1433,
   username: process.env.TYPEORM_USER,
   password: process.env.TYPEORM_PASSWORD,
   database: process.env.TYPEORM_DATABASE || 'master',
@@ -109,10 +110,10 @@ export const TRUSTED_PROXY_IPS: string[] = (process.env.TRUSTED_PROXY_IPS ?? '')
 
 // * Redis
 export const REDIS_HOST: string = process.env.REDIS_HOST || 'redis';
-export const REDIS_PORT: number = +process.env.REDIS_PORT || 6379;
-export const REDIS_USER: string = process.env.REDIS_USER;
-export const REDIS_PASSWORD: string = process.env.REDIS_PASSWORD;
-export const REDIS_DATABASE: number = +process.env.REDIS_DATABASE || 0;
+export const REDIS_PORT: number = Number(process.env.REDIS_PORT) || 6379;
+export const REDIS_USER: string = process.env.REDIS_USER ?? '';
+export const REDIS_PASSWORD: string = process.env.REDIS_PASSWORD ?? '';
+export const REDIS_DATABASE: number = Number(process.env.REDIS_DATABASE) || 0;
 export const REDIS_PREFIX: string = process.env.REDIS_PREFIX
   ? process.env.REDIS_PREFIX.endsWith(':')
     ? process.env.REDIS_PREFIX

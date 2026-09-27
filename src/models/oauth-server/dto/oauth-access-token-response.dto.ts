@@ -35,7 +35,7 @@ export class OAuthAccessTokenResponseDto extends TransformToClass<OAuthAccessTok
   public refreshedById: number;
 
   @Expose()
-  public scopes: string[];
+  public scopes: string[] | null;
 
   @Expose()
   public createdAt: Date;

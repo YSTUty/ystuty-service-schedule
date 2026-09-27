@@ -59,7 +59,7 @@ export class OAuth2AccessTokenGuard extends AuthGuard('oauth2-access-token') {
 
       isAllowed = [
         ...new Set([...requiredScopesByClass, ...requiredScopesByHandler]),
-      ].every((scope) => accessToken.scopes.includes(scope));
+      ].every((scope) => (accessToken.scopes ?? []).includes(scope));
     }
 
     return isAllowed;

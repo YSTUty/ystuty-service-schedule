@@ -58,7 +58,7 @@ export class ThrottlerBehindProxyGuard extends ThrottlerGuard {
       .switchToHttp()
       .getRequest<{ oAuth?: IOAuth2Payload }>().oAuth?.accessToken;
     if (accessToken && !accessToken.isRevoked) {
-      if (accessToken.scopes.includes('schedule:nolimit')) {
+      if ((accessToken.scopes ?? []).includes('schedule:nolimit')) {
         return true;
       }
     }

@@ -127,8 +127,8 @@ export class CalendarService {
           `${((e) => (e ? `[${e}]` : ''))(lesson.auditoryName)}${
             lesson.isDistant ? ' (Дистант)' : ''
           } Групп${
-            lesson.groups.length > 1 ? 'а' : 'ы'
-          } (${lesson.groups.join(', ')})`,
+            (lesson.groups?.length ?? 0) > 1 ? 'а' : 'ы'
+          } (${(lesson.groups ?? []).join(', ')})`,
         );
     }
 
