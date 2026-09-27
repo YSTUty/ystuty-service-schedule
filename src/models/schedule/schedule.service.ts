@@ -426,6 +426,18 @@ export class ScheduleService {
   }
 
   /**
+   * Ищет расписание по постоянному ключу `gruppa.idgroup`.
+   *
+   * `ScheduleView.groupId` соответствует `raspzv.idgr` и меняется вместе с
+   * выгрузкой расписания, поэтому постоянная calendar-ссылка сначала находит
+   * актуальное имя учебной группы.
+   */
+  async getByPersistentGroupId(groupId: number) {
+    const groupName = await this.getGroupNameById(groupId);
+    return groupName ? this.getByGroup(groupName) : null;
+  }
+
+  /**
    * Ищет ID учебной группы по имени для диагностики постоянных calendar-ссылок.
    */
   async getGroupIdByName(

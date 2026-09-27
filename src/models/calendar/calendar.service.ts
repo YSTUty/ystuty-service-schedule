@@ -37,9 +37,9 @@ export class CalendarService {
 
   public async generateCalendarForGroup(groupName: string) {
     return this.buildCalendarForGroup(
-      groupName,
       `${xEnv.CUSTOM_CALENDAR_URL}/group/${groupName}.ical`,
       () => groupName,
+      () => this.scheduleService.getByGroup(groupName),
     );
   }
 
@@ -49,9 +49,9 @@ export class CalendarService {
    */
   public async generateCalendarForGroupId(groupId: number) {
     return this.buildCalendarForGroup(
-      groupId,
       `${xEnv.CUSTOM_CALENDAR_URL}/group-id/${groupId}.ical`,
       () => this.scheduleService.getGroupNameById(groupId),
+      () => this.scheduleService.getByPersistentGroupId(groupId),
     );
   }
 
@@ -59,15 +59,18 @@ export class CalendarService {
    * Создаёт календарь группы для legacy-ссылки по имени и постоянной — по ID.
    */
   private async buildCalendarForGroup(
-    groupIdOrName: number | string,
     source: string,
     getGroupName: () => string | null | Promise<string | null>,
+    getSchedule: () => ReturnType<ScheduleService['getByGroup']>,
   ) {
-    const schedule = await this.scheduleService.getByGroup(groupIdOrName);
+    const schedule = await getSchedule();
     if (!schedule) {
       return null;
     }
-    const groupName = (await getGroupName()) || String(groupIdOrName);
+    const groupName = await getGroupName();
+    if (!groupName) {
+      return null;
+    }
     const calendar = this.generateCalendar()
       .name(`YSTUty [${groupName}]`)
       .source(source)

@@ -96,7 +96,7 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
       parameter: {
         name: 'groupId',
         description:
-          'Постоянный числовой идентификатор учебной группы. Предпочтителен для подписки на календарь.',
+          'Постоянный ID учебной группы (`gruppa.idgroup`). Не путать с `groupId` из `actual_groups.additional=true` (`raspzv.idgr`). Предпочтителен для подписки на календарь.',
         example: 4627,
         schema: { type: 'integer', minimum: 1 },
       },

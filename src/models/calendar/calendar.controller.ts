@@ -116,7 +116,7 @@ export class CalendarController {
     name: 'groupId',
     required: true,
     description:
-      'Постоянный числовой идентификатор учебной группы. Предпочтителен для подписки на календарь.',
+      'Постоянный ID учебной группы (`gruppa.idgroup`). Не путать с `groupId` из `actual_groups.additional=true` (`raspzv.idgr`). Предпочтителен для подписки на календарь.',
     type: Number,
     example: 4627,
   })

@@ -22,7 +22,7 @@ export class GroupDetailDto {
   @ApiProperty({ example: 'ЦИС-37' })
   public name: string;
   /**
-   * ID расписания группы
+   * ID строки расписания группы (`raspzv.idgr`), не постоянный ID `gruppa.idgroup`
    * @deprecated Использовать `groupId`
    * @example 4627
    */
@@ -30,7 +30,7 @@ export class GroupDetailDto {
   @ApiPropertyOptional({ example: 4627, nullable: true, deprecated: true })
   public id_schedule: number | null;
   /**
-   * ID расписания группы
+   * ID строки расписания группы (`raspzv.idgr`), не постоянный ID `gruppa.idgroup`
    * @example 4627
    */
   @Expose()

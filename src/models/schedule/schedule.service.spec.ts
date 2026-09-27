@@ -166,6 +166,28 @@ describe('ScheduleService', () => {
     expect(groupRepository.findOneBy).toHaveBeenCalledWith({ id: 4627 });
   });
 
+  it('looks up a persistent calendar group by its current name', async () => {
+    const service = createService();
+    jest.spyOn(service, 'getGroupNameById').mockResolvedValue('ЦИС-27');
+    const getByGroup = jest.spyOn(service, 'getByGroup').mockResolvedValue({
+      items: [],
+    } as any);
+
+    await expect(service.getByPersistentGroupId(5072200)).resolves.toEqual({
+      items: [],
+    });
+    expect(getByGroup).toHaveBeenCalledWith('ЦИС-27');
+  });
+
+  it('does not query schedule rows when a persistent group is missing', async () => {
+    const service = createService();
+    jest.spyOn(service, 'getGroupNameById').mockResolvedValue(null);
+    const getByGroup = jest.spyOn(service, 'getByGroup');
+
+    await expect(service.getByPersistentGroupId(5072200)).resolves.toBeNull();
+    expect(getByGroup).not.toHaveBeenCalled();
+  });
+
   it('finds the persistent group ID by its name', async () => {
     const service = createService();
     const queryBuilder = createQueryBuilder();
