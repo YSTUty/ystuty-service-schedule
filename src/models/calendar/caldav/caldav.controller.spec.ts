@@ -73,6 +73,57 @@ describe('CalDavController', () => {
     expect(stopTimer).toHaveBeenCalledWith('success');
   });
 
+  it('answers a Depth: 1 CalDAV discovery request', async () => {
+    const { controller } = createController();
+    const response = createResponse();
+    const request = {
+      header: jest.fn((name: string) => (name === 'Depth' ? '1' : undefined)),
+      method: 'PROPFIND',
+      originalUrl: '/v1/calendar/caldav/group-id/4627',
+    };
+
+    await controller.handleGroupIdRequest(
+      4627,
+      undefined,
+      request as any,
+      response as any,
+    );
+
+    expect(response.status).toHaveBeenCalledWith(207);
+    expect(response.send).toHaveBeenCalledWith(
+      expect.stringContaining('<c:calendar-query/>'),
+    );
+    expect(response.send).toHaveBeenCalledWith(
+      expect.stringContaining('calendar.ics'),
+    );
+  });
+
+  it('returns resource properties for a PROPFIND to calendar.ics', async () => {
+    const { controller } = createController();
+    const response = createResponse();
+    const request = {
+      header: jest.fn(),
+      method: 'PROPFIND',
+      originalUrl: '/v1/calendar/caldav/group-id/4627/calendar.ics',
+    };
+
+    await controller.handleGroupIdRequest(
+      4627,
+      'calendar.ics',
+      request as any,
+      response as any,
+    );
+
+    expect(response.send).toHaveBeenCalledWith(
+      expect.stringContaining(
+        '<d:getcontenttype>text/calendar; charset=utf-8</d:getcontenttype>',
+      ),
+    );
+    expect(response.send).toHaveBeenCalledWith(
+      expect.not.stringContaining('<d:collection/>'),
+    );
+  });
+
   it('returns a persistent group calendar through CalDAV', async () => {
     const { controller, calendarService, metricsService, stopTimer } =
       createController();

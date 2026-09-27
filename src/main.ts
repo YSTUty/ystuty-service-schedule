@@ -19,6 +19,7 @@ import {
   ValidationHttpPipe,
 } from '@my-common';
 
+import { getCorsOptions } from './common/config/cors.config';
 import { AppModule } from './models/app/app.module';
 import { createOpenApiDocument } from './models/app/openapi';
 
@@ -45,15 +46,7 @@ async function bootstrap() {
   });
 
   app.enableShutdownHooks();
-  app.enableCors({
-    allowedHeaders: ['content-type', 'authorization'],
-    exposedHeaders: [
-      'x-ratelimit-limit',
-      'x-ratelimit-remaining',
-      'x-ratelimit-reset',
-      'retry-after',
-    ],
-  });
+  app.enableCors((req, callback) => callback(null, getCorsOptions(req)));
 
   // app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 

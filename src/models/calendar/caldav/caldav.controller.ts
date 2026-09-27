@@ -160,18 +160,22 @@ export class CalDavController {
         return;
       }
       if (method === 'PROPFIND') {
-        res
-          .status(207)
-          .type('application/xml; charset=utf-8')
-          .set('DAV', '1, calendar-access')
-          .send(
-            this.calDavService.createPropfindResponse(
+        const propfindResponse = resource
+          ? this.calDavService.createCalendarResourcePropfindResponse(
+              `${collectionHref}calendar.ics`,
+              calendar,
+            )
+          : this.calDavService.createPropfindResponse(
               collectionHref,
               target.displayName,
               calendar,
               req.header('Depth'),
-            ),
-          );
+            );
+        res
+          .status(207)
+          .type('application/xml; charset=utf-8')
+          .set('DAV', '1, calendar-access')
+          .send(propfindResponse);
         stopTimer('success');
         return;
       }

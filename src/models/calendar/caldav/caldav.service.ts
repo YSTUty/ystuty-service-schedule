@@ -51,6 +51,18 @@ export class CalDavService {
   }
 
   /**
+   * Возвращает свойства единственного iCalendar-ресурса без коллекции.
+   */
+  createCalendarResourcePropfindResponse(
+    resourceHref: string,
+    calendar: CalendarResource,
+  ): string {
+    return this.createMultistatus([
+      this.createCalendarObjectResponse(resourceHref, calendar),
+    ]);
+  }
+
+  /**
    * Возвращает календарь как единственный календарный объект для REPORT.
    */
   createReportResponse(
@@ -80,6 +92,10 @@ export class CalDavService {
             <c:calendar-description xml:lang="ru">Расписание занятий ЯГТУ: ${this.escapeXml(calendarName)}</c:calendar-description>
             <c:supported-calendar-component-set><c:comp name="VEVENT"/></c:supported-calendar-component-set>
             <c:supported-calendar-data><c:calendar-data content-type="text/calendar" version="2.0"/></c:supported-calendar-data>
+            <d:supported-report-set>
+              <d:supported-report><d:report><c:calendar-query/></d:report></d:supported-report>
+              <d:supported-report><d:report><c:calendar-multiget/></d:report></d:supported-report>
+            </d:supported-report-set>
           </d:prop>
           <d:status>HTTP/1.1 200 OK</d:status>
         </d:propstat>
@@ -102,6 +118,7 @@ export class CalDavService {
         <d:propstat>
           <d:prop>
             <d:getcontenttype>text/calendar; charset=utf-8</d:getcontenttype>
+            <d:getcontentlength>${Buffer.byteLength(calendar.content, 'utf8')}</d:getcontentlength>
             <d:getetag>${calendar.etag}</d:getetag>
             ${calendarData}
           </d:prop>

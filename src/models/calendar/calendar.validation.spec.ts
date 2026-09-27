@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 
 import * as request from 'supertest';
 
+import { getCorsOptions } from '../../common/config/cors.config';
 import { MetricsService } from '../metrics/metrics.service';
 
 import { CalDavBasicAuthGuard } from './caldav/caldav-basic-auth.guard';
@@ -17,7 +18,7 @@ const calendarService = {
   generateCalendarForTeacher: jest.fn(),
 };
 const metricsService = {
-  startCalendarRequestTimer: jest.fn(),
+  startCalendarRequestTimer: jest.fn(() => jest.fn()),
 };
 
 @Module({
@@ -41,6 +42,7 @@ describe('Calendar teacherId validation', () => {
 
     app = moduleFixture.createNestApplication();
     app.enableVersioning({ type: VersioningType.URI });
+    app.enableCors((req, callback) => callback(null, getCorsOptions(req)));
     await app.init();
   });
 
@@ -84,5 +86,14 @@ describe('Calendar teacherId validation', () => {
       .expect(400);
 
     expect(calendarService.generateCalendarForTeacher).not.toHaveBeenCalled();
+  });
+
+  it('lets CalDAV OPTIONS reach the controller instead of ending at CORS', async () => {
+    await request(app.getHttpServer())
+      .options(`/v1/calendar/caldav/group/${encodeURIComponent('ЦИС-27')}`)
+      .auth('calendar-client', '')
+      .expect(204)
+      .expect('dav', '1, calendar-access')
+      .expect('allow', 'OPTIONS, PROPFIND, REPORT, GET, HEAD');
   });
 });
