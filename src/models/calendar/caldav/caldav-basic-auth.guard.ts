@@ -36,8 +36,12 @@ export class CalDavBasicAuthGuard implements CanActivate {
 
     if (!credentials?.username) {
       // Не логируем заголовок Authorization: он может содержать Basic password.
+      const userAgent = this.getSafeUserAgent(req.headers['user-agent']);
+      const userAgentSuffix = userAgent
+        ? `; user-agent=${JSON.stringify(userAgent)}`
+        : '';
       this.logger.warn(
-        `CalDAV ${req.method.toUpperCase()} [${req.originalUrl ?? req.url}] -> 401 (missing Basic Auth)`,
+        `CalDAV ${req.method.toUpperCase()} [${req.originalUrl ?? req.url}] -> 401 (missing Basic Auth${userAgentSuffix})`,
       );
       res.setHeader(
         'WWW-Authenticate',
@@ -72,5 +76,17 @@ export class CalDavBasicAuthGuard implements CanActivate {
       username: decoded.slice(0, separatorPosition),
       password: decoded.slice(separatorPosition + 1),
     };
+  }
+
+  /** Предотвращает подмену строк журналирования из заголовка User-Agent. */
+  private getSafeUserAgent(
+    userAgent: string | string[] | undefined,
+  ): string | null {
+    const value = Array.isArray(userAgent) ? userAgent[0] : userAgent;
+    if (!value) {
+      return null;
+    }
+
+    return value.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 160);
   }
 }

@@ -39,6 +39,17 @@ interface CalDavTarget {
   notFoundMessage: string;
 }
 
+interface CalDavRequestLogDetails {
+  depth?: string;
+  reportType?: 'calendar-query' | 'calendar-multiget' | 'sync-collection';
+  eventResources?: number;
+  totalEventResources?: number;
+  missingResources?: number;
+  deletedResources?: number;
+  includeCalendarData?: boolean;
+  calendarCollections?: number;
+}
+
 /**
  * Read-only CalDAV-совместимый endpoint для календарей групп и преподавателей.
  */
@@ -218,7 +229,13 @@ export class CalDavController {
           .set(this.calDavService.getOptionsHeaders())
           .end();
         stopTimer('success');
-        this.logRequest(target, 'collection', method, HttpStatus.NO_CONTENT);
+        this.logRequest(
+          req,
+          target,
+          'collection',
+          method,
+          HttpStatus.NO_CONTENT,
+        );
         return;
       }
 
@@ -241,6 +258,7 @@ export class CalDavController {
         this.sendCalendar(res, calendarResource, method === 'HEAD');
         stopTimer('success');
         this.logRequest(
+          req,
           target,
           'resource',
           method,
@@ -250,6 +268,7 @@ export class CalDavController {
         return;
       }
       if (method === 'PROPFIND') {
+        const depth = this.getRequestDepth(req);
         const propfindResponse = calendarResource
           ? this.calDavService.createCalendarResourcePropfindResponse(
               `${collectionHref}${calendarResource.name}`,
@@ -258,7 +277,7 @@ export class CalDavController {
           : this.calDavService.createCollectionPropfindResponse(
               collectionHref,
               collection,
-              req.header('Depth'),
+              depth,
               (
                 await this.calDavSyncService.getCurrentSnapshot(
                   this.getSyncCollectionKey(target),
@@ -273,7 +292,23 @@ export class CalDavController {
           .set('DAV', '1, calendar-access')
           .send(propfindResponse);
         stopTimer('success');
-        this.logRequest(target, 'collection', method, HttpStatus.MULTI_STATUS);
+        this.logRequest(
+          req,
+          target,
+          calendarResource ? 'resource' : 'collection',
+          method,
+          HttpStatus.MULTI_STATUS,
+          calendarResource?.name,
+          {
+            depth,
+            eventResources: calendarResource
+              ? 1
+              : this.getPropfindEventResourcesCount(collection, depth),
+            totalEventResources: calendarResource
+              ? undefined
+              : collection.resources.length,
+          },
+        );
         return;
       }
       if (method === 'REPORT') {
@@ -283,7 +318,7 @@ export class CalDavController {
         }
         if (report.type === 'sync-collection') {
           // RFC 6578 sync-collection обрабатывает только саму collection.
-          if ((req.header('Depth') ?? '0') !== '0') {
+          if (this.getRequestDepth(req) !== '0') {
             throw new BadRequestException(
               'CalDAV sync-collection requires Depth: 0',
             );
@@ -300,7 +335,21 @@ export class CalDavController {
               .set('DAV', '1, calendar-access, sync-collection')
               .send(this.calDavService.createInvalidSyncTokenResponse());
             stopTimer('invalid_sync_token');
-            this.logRequest(target, 'collection', method, HttpStatus.FORBIDDEN);
+            this.logRequest(
+              req,
+              target,
+              'collection',
+              method,
+              HttpStatus.FORBIDDEN,
+              undefined,
+              {
+                depth: this.getRequestDepth(req),
+                reportType: report.type,
+                eventResources: 0,
+                deletedResources: 0,
+                includeCalendarData: report.includeCalendarData,
+              },
+            );
             return;
           }
           res
@@ -316,17 +365,26 @@ export class CalDavController {
             );
           stopTimer('success');
           this.logRequest(
+            req,
             target,
             'collection',
             method,
             HttpStatus.MULTI_STATUS,
+            undefined,
+            {
+              depth: this.getRequestDepth(req),
+              reportType: report.type,
+              eventResources: syncResult.resources.length,
+              deletedResources: syncResult.deletedResourceNames.length,
+              includeCalendarData: report.includeCalendarData,
+            },
           );
           return;
         }
         const reportResult = this.calDavService.getReportResources(
           collection,
           report,
-          req.header('Depth'),
+          this.getRequestDepth(req),
         );
         res
           .status(207)
@@ -340,7 +398,21 @@ export class CalDavController {
             ),
           );
         stopTimer('success');
-        this.logRequest(target, 'collection', method, HttpStatus.MULTI_STATUS);
+        this.logRequest(
+          req,
+          target,
+          'collection',
+          method,
+          HttpStatus.MULTI_STATUS,
+          undefined,
+          {
+            depth: this.getRequestDepth(req),
+            reportType: report.type,
+            eventResources: reportResult.resources.length,
+            missingResources: reportResult.missingHrefs.length,
+            includeCalendarData: report.includeCalendarData,
+          },
+        );
         return;
       }
 
@@ -350,6 +422,7 @@ export class CalDavController {
         .end();
       stopTimer('method_not_allowed');
       this.logRequest(
+        req,
         target,
         resource ? 'resource' : 'collection',
         method,
@@ -359,6 +432,7 @@ export class CalDavController {
     } catch (error) {
       stopTimer('error');
       this.logRequest(
+        req,
         target,
         resource ? 'resource' : 'collection',
         method,
@@ -384,7 +458,13 @@ export class CalDavController {
           .status(HttpStatus.NO_CONTENT)
           .set(this.calDavService.getOptionsHeaders())
           .end();
-        this.logRequest(target, 'principal', method, HttpStatus.NO_CONTENT);
+        this.logRequest(
+          req,
+          target,
+          'principal',
+          method,
+          HttpStatus.NO_CONTENT,
+        );
         return;
       }
       if (method !== 'PROPFIND') {
@@ -393,6 +473,7 @@ export class CalDavController {
           .set('Allow', 'OPTIONS, PROPFIND')
           .end();
         this.logRequest(
+          req,
           target,
           'principal',
           method,
@@ -415,9 +496,18 @@ export class CalDavController {
             this.getCalendarHomeHref(target),
           ),
         );
-      this.logRequest(target, 'principal', method, HttpStatus.MULTI_STATUS);
+      this.logRequest(
+        req,
+        target,
+        'principal',
+        method,
+        HttpStatus.MULTI_STATUS,
+        undefined,
+        { depth: this.getRequestDepth(req) },
+      );
     } catch (error) {
       this.logRequest(
+        req,
         target,
         'principal',
         method,
@@ -442,7 +532,13 @@ export class CalDavController {
           .status(HttpStatus.NO_CONTENT)
           .set(this.calDavService.getOptionsHeaders())
           .end();
-        this.logRequest(target, 'calendar-home', method, HttpStatus.NO_CONTENT);
+        this.logRequest(
+          req,
+          target,
+          'calendar-home',
+          method,
+          HttpStatus.NO_CONTENT,
+        );
         return;
       }
       if (method !== 'PROPFIND') {
@@ -451,6 +547,7 @@ export class CalDavController {
           .set('Allow', 'OPTIONS, PROPFIND')
           .end();
         this.logRequest(
+          req,
           target,
           'calendar-home',
           method,
@@ -478,14 +575,26 @@ export class CalDavController {
             this.getCalendarHomeHref(target),
             this.getCollectionHref(target),
             collection,
-            req.header('Depth'),
+            this.getRequestDepth(req),
             syncToken,
             this.getPrincipalHref(target),
           ),
         );
-      this.logRequest(target, 'calendar-home', method, HttpStatus.MULTI_STATUS);
+      this.logRequest(
+        req,
+        target,
+        'calendar-home',
+        method,
+        HttpStatus.MULTI_STATUS,
+        undefined,
+        {
+          depth: this.getRequestDepth(req),
+          calendarCollections: this.hasDepthOneOrMore(req) ? 1 : 0,
+        },
+      );
     } catch (error) {
       this.logRequest(
+        req,
         target,
         'calendar-home',
         method,
@@ -544,20 +653,84 @@ export class CalDavController {
 
   /** Логирует CalDAV-обмен без Basic credentials и других чувствительных данных. */
   private logRequest(
+    req: Request,
     target: CalDavTarget,
     endpoint: 'collection' | 'resource' | 'principal' | 'calendar-home',
     method: string,
     status: HttpStatus,
     resource?: string,
+    details: CalDavRequestLogDetails = {},
   ): void {
     const suffix = resource ? `/${resource}` : '';
-    const message = `CalDAV ${method} [${endpoint}:${target.type}:${target.value}${suffix}] -> ${status}`;
+    const detailParts: string[] = [];
+    if (details.depth) {
+      detailParts.push(`depth=${details.depth}`);
+    }
+    if (details.reportType) {
+      detailParts.push(`report=${details.reportType}`);
+    }
+    if (details.eventResources !== undefined) {
+      const total =
+        details.totalEventResources === undefined
+          ? ''
+          : `/${details.totalEventResources}`;
+      detailParts.push(`event-resources=${details.eventResources}${total}`);
+    }
+    if (details.missingResources !== undefined) {
+      detailParts.push(`missing=${details.missingResources}`);
+    }
+    if (details.deletedResources !== undefined) {
+      detailParts.push(`deleted=${details.deletedResources}`);
+    }
+    if (details.includeCalendarData !== undefined) {
+      detailParts.push(`calendar-data=${details.includeCalendarData}`);
+    }
+    if (details.calendarCollections !== undefined) {
+      detailParts.push(`calendar-collections=${details.calendarCollections}`);
+    }
+    const userAgent = this.getSafeUserAgent(req.header('User-Agent'));
+    if (userAgent) {
+      detailParts.push(`user-agent=${JSON.stringify(userAgent)}`);
+    }
+    const detailsSuffix = detailParts.length
+      ? ` (${detailParts.join('; ')})`
+      : '';
+    const message = `CalDAV ${method} [${endpoint}:${target.type}:${target.value}${suffix}] -> ${status}${detailsSuffix}`;
 
     if (status >= HttpStatus.BAD_REQUEST) {
       this.logger.warn(message);
     } else {
       this.logger.log(message);
     }
+  }
+
+  /** RFC 4791: без заголовка Depth для collection подразумевается `0`. */
+  private getRequestDepth(req: Request): string {
+    return req.header('Depth') ?? '0';
+  }
+
+  private hasDepthOneOrMore(req: Request): boolean {
+    const depth = this.getRequestDepth(req);
+
+    return depth === '1' || depth === 'infinity';
+  }
+
+  private getPropfindEventResourcesCount(
+    collection: CalDavCalendarCollection,
+    depth: string,
+  ): number {
+    return depth === '1' || depth === 'infinity'
+      ? collection.resources.length
+      : 0;
+  }
+
+  /** Предотвращает подмену строк журналирования из заголовка User-Agent. */
+  private getSafeUserAgent(userAgent: string | undefined): string | null {
+    if (!userAgent) {
+      return null;
+    }
+
+    return userAgent.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 160);
   }
 
   private createGroupTarget(groupName: string): CalDavTarget {
