@@ -8,6 +8,12 @@ import {
   CalDavSyncResult,
 } from './caldav.types';
 
+export const CALDAV_OPTIONS_HEADERS = {
+  Allow: 'OPTIONS, PROPFIND, REPORT, GET, HEAD',
+  DAV: '1, calendar-access, sync-collection',
+  'MS-Author-Via': 'DAV',
+};
+
 interface CalDavCalendarQuery {
   type: 'calendar-query';
   includeCalendarData: boolean;
@@ -43,11 +49,7 @@ export class CalDavService {
   });
 
   getOptionsHeaders(): Record<string, string> {
-    return {
-      Allow: 'OPTIONS, PROPFIND, REPORT, GET, HEAD',
-      DAV: '1, calendar-access, sync-collection',
-      'MS-Author-Via': 'DAV',
-    };
+    return CALDAV_OPTIONS_HEADERS;
   }
 
   /**
@@ -171,6 +173,7 @@ export class CalDavService {
     collection: CalDavCalendarCollection,
     depth: string | undefined,
     syncToken: string,
+    principalHref?: string,
   ): string {
     const responses = [
       this.createCollectionResponse(
@@ -178,6 +181,7 @@ export class CalDavService {
         collection.name,
         collection.description,
         syncToken,
+        principalHref,
       ),
     ];
     if (depth === '1' || depth === 'infinity') {
@@ -187,6 +191,70 @@ export class CalDavService {
             `${collectionHref}${resource.name}`,
             resource,
           ),
+        ),
+      );
+    }
+
+    return this.createMultistatus(responses);
+  }
+
+  /**
+   * Формирует виртуальный WebDAV principal: фактический пользователь не
+   * хранится, но CalDAV-клиент получает стандартный путь к calendar-home-set.
+   */
+  createPrincipalPropfindResponse(
+    principalHref: string,
+    calendarHomeHref: string,
+  ): string {
+    return this.createMultistatus([
+      `
+        <d:response>
+          <d:href>${this.escapeXml(principalHref)}</d:href>
+          <d:propstat>
+            <d:prop>
+              <d:resourcetype><d:principal/></d:resourcetype>
+              <d:displayname>YSTUty Calendar</d:displayname>
+              <c:calendar-home-set><d:href>${this.escapeXml(calendarHomeHref)}</d:href></c:calendar-home-set>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+          </d:propstat>
+        </d:response>
+      `,
+    ]);
+  }
+
+  /** Возвращает calendar home и его единственную read-only коллекцию. */
+  createCalendarHomePropfindResponse(
+    calendarHomeHref: string,
+    collectionHref: string,
+    collection: CalDavCalendarCollection,
+    depth: string | undefined,
+    syncToken: string,
+    principalHref: string,
+  ): string {
+    const responses = [
+      `
+        <d:response>
+          <d:href>${this.escapeXml(calendarHomeHref)}</d:href>
+          <d:propstat>
+            <d:prop>
+              <d:resourcetype><d:collection/></d:resourcetype>
+              <d:displayname>YSTUty Calendars</d:displayname>
+              <d:current-user-principal><d:href>${this.escapeXml(principalHref)}</d:href></d:current-user-principal>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+          </d:propstat>
+        </d:response>
+      `,
+    ];
+    if (depth === '1' || depth === 'infinity') {
+      responses.push(
+        this.createCollectionResponse(
+          collectionHref,
+          collection.name,
+          collection.description,
+          syncToken,
+          principalHref,
         ),
       );
     }
@@ -258,7 +326,12 @@ export class CalDavService {
     calendarName: string,
     calendarDescription: string,
     syncToken: string,
+    principalHref?: string,
   ): string {
+    const currentUserPrincipal = principalHref
+      ? `<d:current-user-principal><d:href>${this.escapeXml(principalHref)}</d:href></d:current-user-principal>`
+      : '';
+
     return `
       <d:response>
         <d:href>${this.escapeXml(collectionHref)}</d:href>
@@ -269,6 +342,7 @@ export class CalDavService {
             <c:calendar-description xml:lang="ru">${this.escapeXml(calendarDescription)}</c:calendar-description>
             <c:supported-calendar-component-set><c:comp name="VEVENT"/></c:supported-calendar-component-set>
             <c:supported-calendar-data><c:calendar-data content-type="text/calendar" version="2.0"/></c:supported-calendar-data>
+            ${currentUserPrincipal}
             <d:sync-token>${this.escapeXml(syncToken)}</d:sync-token>
             <d:supported-report-set>
               <d:supported-report><d:report><c:calendar-query/></d:report></d:supported-report>

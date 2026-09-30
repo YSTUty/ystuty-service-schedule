@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 
@@ -15,14 +16,14 @@ import { Request, Response } from 'express';
  */
 @Injectable()
 export class CalDavBasicAuthGuard implements CanActivate {
+  private readonly logger = new Logger(CalDavBasicAuthGuard.name);
+
   canActivate(context: ExecutionContext): boolean {
     const http = context.switchToHttp();
     const req = http.getRequest<Request>();
     const res = http.getResponse<Response>();
 
     // CORS preflight не является CalDAV discovery и не содержит credentials.
-    // Настоящий OPTIONS должен получить Basic challenge, чтобы клиент повторил
-    // discovery с заданными пользователем логином и паролем.
     if (
       req.method.toUpperCase() === 'OPTIONS' &&
       req.headers.origin &&
@@ -34,6 +35,10 @@ export class CalDavBasicAuthGuard implements CanActivate {
     const credentials = this.getCredentials(req.headers.authorization);
 
     if (!credentials?.username) {
+      // Не логируем заголовок Authorization: он может содержать Basic password.
+      this.logger.warn(
+        `CalDAV ${req.method.toUpperCase()} [${req.originalUrl ?? req.url}] -> 401 (missing Basic Auth)`,
+      );
       res.setHeader(
         'WWW-Authenticate',
         'Basic realm="YSTUty Calendar", charset="UTF-8"',

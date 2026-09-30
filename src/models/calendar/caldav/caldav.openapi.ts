@@ -182,6 +182,8 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
         `calendar_caldavOptions${targetPath.targetName}`,
       ),
       'x-webdav-methods': webDavMethods,
+      'x-caldav-discovery':
+        'PROPFIND коллекции возвращает DAV:current-user-principal, затем CALDAV:calendar-home-set с этой read-only коллекцией.',
     } as any;
 
     document.paths[targetPath.resourcePath] = {

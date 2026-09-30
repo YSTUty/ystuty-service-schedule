@@ -146,6 +146,46 @@ describe('CalDavController', () => {
     );
   });
 
+  it('links the calendar collection to a virtual principal and calendar home', async () => {
+    const { controller } = createController();
+    const principalResponse = createResponse();
+    const homeResponse = createResponse();
+    const request = {
+      header: jest.fn((name: string) => (name === 'Depth' ? '1' : undefined)),
+      method: 'PROPFIND',
+    };
+
+    await controller.handleGroupIdPrincipalRequest(
+      4627,
+      request as any,
+      principalResponse as any,
+    );
+    await controller.handleGroupIdCalendarHomeRequest(
+      4627,
+      request as any,
+      homeResponse as any,
+    );
+
+    expect(principalResponse.status).toHaveBeenCalledWith(207);
+    expect(principalResponse.send).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `${publicCalendarPath}/caldav/principals/group-id/4627/`,
+      ),
+    );
+    expect(principalResponse.send).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `${publicCalendarPath}/caldav/homes/group-id/4627/`,
+      ),
+    );
+    expect(homeResponse.status).toHaveBeenCalledWith(207);
+    expect(homeResponse.send).toHaveBeenCalledWith(
+      expect.stringContaining(`${publicCalendarPath}/caldav/group-id/4627/`),
+    );
+    expect(homeResponse.send).toHaveBeenCalledWith(
+      expect.stringContaining('<d:current-user-principal>'),
+    );
+  });
+
   it('returns only changed resources through RFC 6578 sync-collection', async () => {
     const { controller, calDavSyncService } = createController();
     const response = createResponse();

@@ -16,7 +16,9 @@ const calDavPassword = process.env.CALDAV_TEST_PASSWORD ?? '';
 
 describeCalDavContract('CalDAV protocol contract (e2e)', () => {
   let authorization: string;
+  let calendarHomeUrl: string;
   let calendarResourceUrl: string;
+  let principalUrl: string;
   let syncToken: string;
 
   beforeAll(() => {
@@ -34,7 +36,9 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
     authorization = `Basic ${Buffer.from(
       `${calDavUsername}:${calDavPassword}`,
     ).toString('base64')}`;
+    calendarHomeUrl = '';
     calendarResourceUrl = '';
+    principalUrl = '';
     syncToken = '';
   });
 
@@ -60,6 +64,45 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
     expect(response.headers.get('dav')).toContain('calendar-access');
     expect(response.headers.get('allow')).toContain('PROPFIND');
     expect(response.headers.get('allow')).toContain('REPORT');
+  });
+
+  it('discovers a principal and calendar home from the configured collection', async () => {
+    const collectionResponse = await requestCalDav('PROPFIND', calDavUrl, {
+      Depth: '0',
+      'Content-Type': 'application/xml; charset=utf-8',
+    });
+    const collectionBody = await collectionResponse.text();
+
+    expect(collectionResponse.status).toBe(207);
+    const principalHref = collectionBody.match(
+      /<d:current-user-principal>\s*<d:href>([^<]+)<\/d:href>/,
+    )?.[1];
+    expect(principalHref).toBeTruthy();
+    principalUrl = new URL(principalHref!, calDavUrl).toString();
+    expect(new URL(principalUrl).origin).toBe(new URL(calDavUrl!).origin);
+
+    const principalResponse = await requestCalDav('PROPFIND', principalUrl, {
+      Depth: '0',
+      'Content-Type': 'application/xml; charset=utf-8',
+    });
+    const principalBody = await principalResponse.text();
+
+    expect(principalResponse.status).toBe(207);
+    const calendarHomeHref = principalBody.match(
+      /<c:calendar-home-set>\s*<d:href>([^<]+)<\/d:href>/,
+    )?.[1];
+    expect(calendarHomeHref).toBeTruthy();
+    calendarHomeUrl = new URL(calendarHomeHref!, calDavUrl).toString();
+
+    const homeResponse = await requestCalDav('PROPFIND', calendarHomeUrl, {
+      Depth: '1',
+      'Content-Type': 'application/xml; charset=utf-8',
+    });
+    const homeBody = await homeResponse.text();
+
+    expect(homeResponse.status).toBe(207);
+    expect(homeBody).toContain('<c:calendar/>');
+    expect(homeBody).toContain('<d:current-user-principal>');
   });
 
   it('discovers the collection and its event resources through PROPFIND', async () => {

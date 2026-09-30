@@ -47,6 +47,31 @@ describe('CalDavService', () => {
     expect(response).toContain('<d:getetag>"first"</d:getetag>');
   });
 
+  it('provides a principal and calendar home for account-style discovery', () => {
+    const service = new CalDavService();
+    const principalResponse = service.createPrincipalPropfindResponse(
+      '/caldav/principals/group-id/4627/',
+      '/caldav/homes/group-id/4627/',
+    );
+    const homeResponse = service.createCalendarHomePropfindResponse(
+      '/caldav/homes/group-id/4627/',
+      '/caldav/group-id/4627/',
+      collection,
+      '1',
+      'urn:ystuty:caldav:sync:collection:state',
+      '/caldav/principals/group-id/4627/',
+    );
+
+    expect(principalResponse).toContain('<d:principal/>');
+    expect(principalResponse).toContain('<c:calendar-home-set>');
+    expect(principalResponse).toContain('/caldav/homes/group-id/4627/');
+    expect(homeResponse).toContain(
+      '<d:resourcetype><d:collection/></d:resourcetype>',
+    );
+    expect(homeResponse).toContain('<c:calendar/>');
+    expect(homeResponse).toContain('<d:current-user-principal>');
+  });
+
   it('filters calendar-query resources by time range and only includes requested data', () => {
     const service = new CalDavService();
     const report = service.parseReportRequest(`

@@ -3,7 +3,9 @@ import {
   BadRequestException,
   Body,
   Controller,
+  HttpException,
   HttpStatus,
+  Logger,
   NotFoundException,
   Param,
   ParseIntPipe,
@@ -28,6 +30,15 @@ import { CalDavSyncService } from './caldav-sync.service';
 import { CalDavService } from './caldav.service';
 import { CalDavCalendarCollection } from './caldav.types';
 
+interface CalDavTarget {
+  type: 'group' | 'teacher';
+  value: string | number;
+  syncKey: string;
+  publicCollectionPath: string;
+  getCollection: () => Promise<CalDavCalendarCollection | null>;
+  notFoundMessage: string;
+}
+
 /**
  * Read-only CalDAV-совместимый endpoint для календарей групп и преподавателей.
  */
@@ -36,6 +47,8 @@ import { CalDavCalendarCollection } from './caldav.types';
 @UseGuards(CalDavBasicAuthGuard)
 @Controller('/calendar/caldav')
 export class CalDavController {
+  private readonly logger = new Logger(CalDavController.name);
+
   constructor(
     private readonly calendarService: CalendarService,
     private readonly calDavService: CalDavService,
@@ -53,15 +66,7 @@ export class CalDavController {
     @Body() body: string | undefined,
   ): Promise<void> {
     await this.handleRequest(
-      {
-        type: 'group',
-        value: groupName,
-        syncKey: `group-name:${groupName}`,
-        publicCollectionPath: `group/${encodeURIComponent(groupName)}`,
-        getCollection: () =>
-          this.calendarService.generateCalDavCalendarForGroup(groupName),
-        notFoundMessage: 'Group not found by this name or id',
-      },
+      this.createGroupTarget(groupName),
       resource,
       req,
       res,
@@ -79,15 +84,7 @@ export class CalDavController {
     @Body() body: string | undefined,
   ): Promise<void> {
     await this.handleRequest(
-      {
-        type: 'group',
-        value: groupId,
-        syncKey: `group-id:${groupId}`,
-        publicCollectionPath: `group-id/${groupId}`,
-        getCollection: () =>
-          this.calendarService.generateCalDavCalendarForGroupId(groupId),
-        notFoundMessage: 'Group not found by this id',
-      },
+      this.createGroupIdTarget(groupId),
       resource,
       req,
       res,
@@ -105,15 +102,7 @@ export class CalDavController {
     @Body() body: string | undefined,
   ): Promise<void> {
     await this.handleRequest(
-      {
-        type: 'teacher',
-        value: teacherId,
-        syncKey: `teacher:${teacherId}`,
-        publicCollectionPath: `teacher/${teacherId}`,
-        getCollection: () =>
-          this.calendarService.generateCalDavCalendarForTeacher(teacherId),
-        notFoundMessage: 'Teacher not found',
-      },
+      this.createTeacherTarget(teacherId),
       resource,
       req,
       res,
@@ -121,18 +110,95 @@ export class CalDavController {
     );
   }
 
+  @All('principals/group/:groupName')
+  @Version('1')
+  async handleGroupPrincipalRequest(
+    @Param('groupName') groupName: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.handlePrincipalRequest(
+      this.createGroupTarget(groupName),
+      req,
+      res,
+    );
+  }
+
+  @All('principals/group-id/:groupId')
+  @Version('1')
+  async handleGroupIdPrincipalRequest(
+    @Param('groupId', ParseIntPipe) groupId: number,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.handlePrincipalRequest(
+      this.createGroupIdTarget(groupId),
+      req,
+      res,
+    );
+  }
+
+  @All('principals/teacher/:teacherId')
+  @Version('1')
+  async handleTeacherPrincipalRequest(
+    @Param('teacherId', ParseIntPipe) teacherId: number,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.handlePrincipalRequest(
+      this.createTeacherTarget(teacherId),
+      req,
+      res,
+    );
+  }
+
+  @All('homes/group/:groupName')
+  @Version('1')
+  async handleGroupCalendarHomeRequest(
+    @Param('groupName') groupName: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.handleCalendarHomeRequest(
+      this.createGroupTarget(groupName),
+      req,
+      res,
+    );
+  }
+
+  @All('homes/group-id/:groupId')
+  @Version('1')
+  async handleGroupIdCalendarHomeRequest(
+    @Param('groupId', ParseIntPipe) groupId: number,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.handleCalendarHomeRequest(
+      this.createGroupIdTarget(groupId),
+      req,
+      res,
+    );
+  }
+
+  @All('homes/teacher/:teacherId')
+  @Version('1')
+  async handleTeacherCalendarHomeRequest(
+    @Param('teacherId', ParseIntPipe) teacherId: number,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.handleCalendarHomeRequest(
+      this.createTeacherTarget(teacherId),
+      req,
+      res,
+    );
+  }
+
   /**
    * Обрабатывает общие для всех календарей методы CalDAV.
    */
   private async handleRequest(
-    target: {
-      type: 'group' | 'teacher';
-      value: string | number;
-      syncKey: string;
-      publicCollectionPath: string;
-      getCollection: () => Promise<CalDavCalendarCollection | null>;
-      notFoundMessage: string;
-    },
+    target: CalDavTarget,
     resource: string | undefined,
     req: Request,
     res: Response,
@@ -152,6 +218,7 @@ export class CalDavController {
           .set(this.calDavService.getOptionsHeaders())
           .end();
         stopTimer('success');
+        this.logRequest(target, 'collection', method, HttpStatus.NO_CONTENT);
         return;
       }
 
@@ -173,6 +240,13 @@ export class CalDavController {
       if ((method === 'GET' || method === 'HEAD') && calendarResource) {
         this.sendCalendar(res, calendarResource, method === 'HEAD');
         stopTimer('success');
+        this.logRequest(
+          target,
+          'resource',
+          method,
+          HttpStatus.OK,
+          calendarResource.name,
+        );
         return;
       }
       if (method === 'PROPFIND') {
@@ -191,6 +265,7 @@ export class CalDavController {
                   collection,
                 )
               ).token,
+              this.getPrincipalHref(target),
             );
         res
           .status(207)
@@ -198,6 +273,7 @@ export class CalDavController {
           .set('DAV', '1, calendar-access')
           .send(propfindResponse);
         stopTimer('success');
+        this.logRequest(target, 'collection', method, HttpStatus.MULTI_STATUS);
         return;
       }
       if (method === 'REPORT') {
@@ -224,6 +300,7 @@ export class CalDavController {
               .set('DAV', '1, calendar-access, sync-collection')
               .send(this.calDavService.createInvalidSyncTokenResponse());
             stopTimer('invalid_sync_token');
+            this.logRequest(target, 'collection', method, HttpStatus.FORBIDDEN);
             return;
           }
           res
@@ -238,6 +315,12 @@ export class CalDavController {
               ),
             );
           stopTimer('success');
+          this.logRequest(
+            target,
+            'collection',
+            method,
+            HttpStatus.MULTI_STATUS,
+          );
           return;
         }
         const reportResult = this.calDavService.getReportResources(
@@ -257,6 +340,7 @@ export class CalDavController {
             ),
           );
         stopTimer('success');
+        this.logRequest(target, 'collection', method, HttpStatus.MULTI_STATUS);
         return;
       }
 
@@ -265,8 +349,150 @@ export class CalDavController {
         .set('Allow', this.calDavService.getOptionsHeaders().Allow)
         .end();
       stopTimer('method_not_allowed');
+      this.logRequest(
+        target,
+        resource ? 'resource' : 'collection',
+        method,
+        HttpStatus.METHOD_NOT_ALLOWED,
+        resource,
+      );
     } catch (error) {
       stopTimer('error');
+      this.logRequest(
+        target,
+        resource ? 'resource' : 'collection',
+        method,
+        error instanceof HttpException
+          ? error.getStatus()
+          : HttpStatus.INTERNAL_SERVER_ERROR,
+        resource,
+      );
+      throw error;
+    }
+  }
+
+  /** Обрабатывает CalDAV principal, связанный с конкретной collection. */
+  private async handlePrincipalRequest(
+    target: CalDavTarget,
+    req: Request,
+    res: Response,
+  ): Promise<void> {
+    const method = req.method.toUpperCase();
+    try {
+      if (method === 'OPTIONS') {
+        res
+          .status(HttpStatus.NO_CONTENT)
+          .set(this.calDavService.getOptionsHeaders())
+          .end();
+        this.logRequest(target, 'principal', method, HttpStatus.NO_CONTENT);
+        return;
+      }
+      if (method !== 'PROPFIND') {
+        res
+          .status(HttpStatus.METHOD_NOT_ALLOWED)
+          .set('Allow', 'OPTIONS, PROPFIND')
+          .end();
+        this.logRequest(
+          target,
+          'principal',
+          method,
+          HttpStatus.METHOD_NOT_ALLOWED,
+        );
+        return;
+      }
+
+      const collection = await target.getCollection();
+      if (!collection) {
+        throw new NotFoundException(target.notFoundMessage);
+      }
+      res
+        .status(HttpStatus.MULTI_STATUS)
+        .type('application/xml; charset=utf-8')
+        .set('DAV', '1, calendar-access')
+        .send(
+          this.calDavService.createPrincipalPropfindResponse(
+            this.getPrincipalHref(target),
+            this.getCalendarHomeHref(target),
+          ),
+        );
+      this.logRequest(target, 'principal', method, HttpStatus.MULTI_STATUS);
+    } catch (error) {
+      this.logRequest(
+        target,
+        'principal',
+        method,
+        error instanceof HttpException
+          ? error.getStatus()
+          : HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+      throw error;
+    }
+  }
+
+  /** Обрабатывает calendar-home-set с единственной коллекцией расписания. */
+  private async handleCalendarHomeRequest(
+    target: CalDavTarget,
+    req: Request,
+    res: Response,
+  ): Promise<void> {
+    const method = req.method.toUpperCase();
+    try {
+      if (method === 'OPTIONS') {
+        res
+          .status(HttpStatus.NO_CONTENT)
+          .set(this.calDavService.getOptionsHeaders())
+          .end();
+        this.logRequest(target, 'calendar-home', method, HttpStatus.NO_CONTENT);
+        return;
+      }
+      if (method !== 'PROPFIND') {
+        res
+          .status(HttpStatus.METHOD_NOT_ALLOWED)
+          .set('Allow', 'OPTIONS, PROPFIND')
+          .end();
+        this.logRequest(
+          target,
+          'calendar-home',
+          method,
+          HttpStatus.METHOD_NOT_ALLOWED,
+        );
+        return;
+      }
+
+      const collection = await target.getCollection();
+      if (!collection) {
+        throw new NotFoundException(target.notFoundMessage);
+      }
+      const syncToken = (
+        await this.calDavSyncService.getCurrentSnapshot(
+          this.getSyncCollectionKey(target),
+          collection,
+        )
+      ).token;
+      res
+        .status(HttpStatus.MULTI_STATUS)
+        .type('application/xml; charset=utf-8')
+        .set('DAV', '1, calendar-access')
+        .send(
+          this.calDavService.createCalendarHomePropfindResponse(
+            this.getCalendarHomeHref(target),
+            this.getCollectionHref(target),
+            collection,
+            req.header('Depth'),
+            syncToken,
+            this.getPrincipalHref(target),
+          ),
+        );
+      this.logRequest(target, 'calendar-home', method, HttpStatus.MULTI_STATUS);
+    } catch (error) {
+      this.logRequest(
+        target,
+        'calendar-home',
+        method,
+        error instanceof HttpException
+          ? error.getStatus()
+          : HttpStatus.INTERNAL_SERVER_ERROR,
+      );
       throw error;
     }
   }
@@ -290,15 +516,83 @@ export class CalDavController {
    * Это исключает потерю Basic Auth при разных public-доменах reverse proxy.
    */
   private getCollectionHref(target: { publicCollectionPath: string }): string {
+    return `${this.getCalDavBasePath()}/${target.publicCollectionPath}/`;
+  }
+
+  private getPrincipalHref(target: { publicCollectionPath: string }): string {
+    return `${this.getCalDavBasePath()}/principals/${target.publicCollectionPath}/`;
+  }
+
+  private getCalendarHomeHref(target: {
+    publicCollectionPath: string;
+  }): string {
+    return `${this.getCalDavBasePath()}/homes/${target.publicCollectionPath}/`;
+  }
+
+  private getCalDavBasePath(): string {
     const calendarPath = new URL(xEnv.CUSTOM_CALENDAR_URL).pathname.replace(
       /\/+$/,
       '',
     );
 
-    return `${calendarPath}/caldav/${target.publicCollectionPath}/`;
+    return `${calendarPath}/caldav`;
   }
 
   private getSyncCollectionKey(target: { syncKey: string }): string {
     return target.syncKey;
+  }
+
+  /** Логирует CalDAV-обмен без Basic credentials и других чувствительных данных. */
+  private logRequest(
+    target: CalDavTarget,
+    endpoint: 'collection' | 'resource' | 'principal' | 'calendar-home',
+    method: string,
+    status: HttpStatus,
+    resource?: string,
+  ): void {
+    const suffix = resource ? `/${resource}` : '';
+    const message = `CalDAV ${method} [${endpoint}:${target.type}:${target.value}${suffix}] -> ${status}`;
+
+    if (status >= HttpStatus.BAD_REQUEST) {
+      this.logger.warn(message);
+    } else {
+      this.logger.log(message);
+    }
+  }
+
+  private createGroupTarget(groupName: string): CalDavTarget {
+    return {
+      type: 'group',
+      value: groupName,
+      syncKey: `group-name:${groupName}`,
+      publicCollectionPath: `group/${encodeURIComponent(groupName)}`,
+      getCollection: () =>
+        this.calendarService.generateCalDavCalendarForGroup(groupName),
+      notFoundMessage: 'Group not found by this name or id',
+    };
+  }
+
+  private createGroupIdTarget(groupId: number): CalDavTarget {
+    return {
+      type: 'group',
+      value: groupId,
+      syncKey: `group-id:${groupId}`,
+      publicCollectionPath: `group-id/${groupId}`,
+      getCollection: () =>
+        this.calendarService.generateCalDavCalendarForGroupId(groupId),
+      notFoundMessage: 'Group not found by this id',
+    };
+  }
+
+  private createTeacherTarget(teacherId: number): CalDavTarget {
+    return {
+      type: 'teacher',
+      value: teacherId,
+      syncKey: `teacher:${teacherId}`,
+      publicCollectionPath: `teacher/${teacherId}`,
+      getCollection: () =>
+        this.calendarService.generateCalDavCalendarForTeacher(teacherId),
+      notFoundMessage: 'Teacher not found',
+    };
   }
 }
