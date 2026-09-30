@@ -1,3 +1,5 @@
+import * as xEnv from '@my-environment';
+
 import { CalDavController } from './caldav.controller';
 import { CalDavService } from './caldav.service';
 import { CalDavCalendarCollection } from './caldav.types';
@@ -91,6 +93,11 @@ describe('CalDavController', () => {
     expect(response.send).toHaveBeenCalledWith(
       expect.stringContaining('lesson-1.ics'),
     );
+    expect(response.send).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `${xEnv.CUSTOM_CALENDAR_URL}/caldav/group/${encodeURIComponent('ЦИС-16')}/lesson-1.ics`,
+      ),
+    );
     expect(metricsService.startCalendarRequestTimer).toHaveBeenCalledWith({
       protocol: 'caldav',
       targetType: 'group',
@@ -126,6 +133,16 @@ describe('CalDavController', () => {
     );
     expect(response.send).toHaveBeenCalledWith(
       expect.stringContaining('<d:sync-token>'),
+    );
+    expect(response.send).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `${xEnv.CUSTOM_CALENDAR_URL}/caldav/group-id/4627/lesson-1.ics`,
+      ),
+    );
+    expect(response.send).toHaveBeenCalledWith(
+      expect.not.stringContaining(
+        '/v1/calendar/caldav/group-id/4627/lesson-1.ics',
+      ),
     );
   });
 
@@ -222,6 +239,11 @@ describe('CalDavController', () => {
     );
     expect(response.send).toHaveBeenCalledWith(
       expect.not.stringContaining('<d:collection/>'),
+    );
+    expect(response.send).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `${xEnv.CUSTOM_CALENDAR_URL}/caldav/group-id/4627/lesson-1.ics`,
+      ),
     );
   });
 

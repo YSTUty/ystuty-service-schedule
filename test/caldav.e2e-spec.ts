@@ -78,6 +78,7 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
     const resourceHref = body.match(/<d:href>([^<]+\.ics)<\/d:href>/)?.[1];
     expect(resourceHref).toBeTruthy();
     calendarResourceUrl = new URL(resourceHref!, calDavUrl).toString();
+    expect(calendarResourceUrl.startsWith(`${calDavUrl}/`)).toBe(true);
   });
 
   it('performs an initial RFC 6578 synchronization', async () => {

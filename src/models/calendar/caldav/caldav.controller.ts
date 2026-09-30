@@ -16,6 +16,8 @@ import { ApiExcludeController } from '@nestjs/swagger';
 
 import { Request, Response } from 'express';
 
+import * as xEnv from '@my-environment';
+
 import { Public } from '@my-common';
 
 import { MetricsService } from '../../metrics/metrics.service';
@@ -55,6 +57,7 @@ export class CalDavController {
         type: 'group',
         value: groupName,
         syncKey: `group-name:${groupName}`,
+        publicCollectionPath: `group/${encodeURIComponent(groupName)}`,
         getCollection: () =>
           this.calendarService.generateCalDavCalendarForGroup(groupName),
         notFoundMessage: 'Group not found by this name or id',
@@ -80,6 +83,7 @@ export class CalDavController {
         type: 'group',
         value: groupId,
         syncKey: `group-id:${groupId}`,
+        publicCollectionPath: `group-id/${groupId}`,
         getCollection: () =>
           this.calendarService.generateCalDavCalendarForGroupId(groupId),
         notFoundMessage: 'Group not found by this id',
@@ -105,6 +109,7 @@ export class CalDavController {
         type: 'teacher',
         value: teacherId,
         syncKey: `teacher:${teacherId}`,
+        publicCollectionPath: `teacher/${teacherId}`,
         getCollection: () =>
           this.calendarService.generateCalDavCalendarForTeacher(teacherId),
         notFoundMessage: 'Teacher not found',
@@ -124,6 +129,7 @@ export class CalDavController {
       type: 'group' | 'teacher';
       value: string | number;
       syncKey: string;
+      publicCollectionPath: string;
       getCollection: () => Promise<CalDavCalendarCollection | null>;
       notFoundMessage: string;
     },
@@ -154,7 +160,7 @@ export class CalDavController {
         stopTimer('not_found');
         throw new NotFoundException(target.notFoundMessage);
       }
-      const collectionHref = this.getCollectionHref(req, resource);
+      const collectionHref = this.getCollectionHref(target);
       const calendarResource = resource
         ? collection.resources.find((candidate) => candidate.name === resource)
         : undefined;
@@ -279,18 +285,12 @@ export class CalDavController {
       .send(isHeadRequest ? undefined : calendar.content);
   }
 
-  private getCollectionHref(
-    req: Request,
-    resource: string | undefined,
-  ): string {
-    const urlPath = req.originalUrl.split('?')[0];
-    const path = resource
-      ? urlPath.replace(
-          new RegExp(`/${resource.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`),
-          '',
-        )
-      : urlPath;
-    return path.endsWith('/') ? path : `${path}/`;
+  /**
+   * WebDAV href должен указывать на публичный адрес, а не на внутренний URI
+   * после proxy rewrite (например, `/v1/calendar/...` в контейнере).
+   */
+  private getCollectionHref(target: { publicCollectionPath: string }): string {
+    return `${xEnv.CUSTOM_CALENDAR_URL.replace(/\/+$/, '')}/caldav/${target.publicCollectionPath}/`;
   }
 
   private getSyncCollectionKey(target: { syncKey: string }): string {
