@@ -286,11 +286,16 @@ export class CalDavController {
   }
 
   /**
-   * WebDAV href должен указывать на публичный адрес, а не на внутренний URI
-   * после proxy rewrite (например, `/v1/calendar/...` в контейнере).
+   * Path-relative href сохраняет origin, по которому клиент открыл collection.
+   * Это исключает потерю Basic Auth при разных public-доменах reverse proxy.
    */
   private getCollectionHref(target: { publicCollectionPath: string }): string {
-    return `${xEnv.CUSTOM_CALENDAR_URL.replace(/\/+$/, '')}/caldav/${target.publicCollectionPath}/`;
+    const calendarPath = new URL(xEnv.CUSTOM_CALENDAR_URL).pathname.replace(
+      /\/+$/,
+      '',
+    );
+
+    return `${calendarPath}/caldav/${target.publicCollectionPath}/`;
   }
 
   private getSyncCollectionKey(target: { syncKey: string }): string {

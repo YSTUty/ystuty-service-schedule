@@ -4,6 +4,11 @@ import { CalDavController } from './caldav.controller';
 import { CalDavService } from './caldav.service';
 import { CalDavCalendarCollection } from './caldav.types';
 
+const publicCalendarPath = new URL(xEnv.CUSTOM_CALENDAR_URL).pathname.replace(
+  /\/+$/,
+  '',
+);
+
 describe('CalDavController', () => {
   const collection: CalDavCalendarCollection = {
     name: 'ЦИС-26',
@@ -95,7 +100,7 @@ describe('CalDavController', () => {
     );
     expect(response.send).toHaveBeenCalledWith(
       expect.stringContaining(
-        `${xEnv.CUSTOM_CALENDAR_URL}/caldav/group/${encodeURIComponent('ЦИС-16')}/lesson-1.ics`,
+        `${publicCalendarPath}/caldav/group/${encodeURIComponent('ЦИС-16')}/lesson-1.ics`,
       ),
     );
     expect(metricsService.startCalendarRequestTimer).toHaveBeenCalledWith({
@@ -136,7 +141,7 @@ describe('CalDavController', () => {
     );
     expect(response.send).toHaveBeenCalledWith(
       expect.stringContaining(
-        `${xEnv.CUSTOM_CALENDAR_URL}/caldav/group-id/4627/lesson-1.ics`,
+        `${publicCalendarPath}/caldav/group-id/4627/lesson-1.ics`,
       ),
     );
   });
@@ -237,7 +242,7 @@ describe('CalDavController', () => {
     );
     expect(response.send).toHaveBeenCalledWith(
       expect.stringContaining(
-        `${xEnv.CUSTOM_CALENDAR_URL}/caldav/group-id/4627/lesson-1.ics`,
+        `${publicCalendarPath}/caldav/group-id/4627/lesson-1.ics`,
       ),
     );
   });
