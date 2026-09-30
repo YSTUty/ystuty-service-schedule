@@ -45,6 +45,7 @@ describe('Schedule response DTO serialization', () => {
               lessons: [
                 {
                   trainingId: 123456,
+                  calendarResourceKey: 'schedule:123456',
                   number: 1,
                   timeRange: '08:30-10:00',
                   originalTimeTitle: '1. 08:30-10:00',

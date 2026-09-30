@@ -1,5 +1,7 @@
 import {
   All,
+  BadRequestException,
+  Body,
   Controller,
   HttpStatus,
   NotFoundException,
@@ -21,6 +23,7 @@ import { CalendarService } from '../calendar.service';
 
 import { CalDavBasicAuthGuard } from './caldav-basic-auth.guard';
 import { CalDavService } from './caldav.service';
+import { CalDavCalendarCollection } from './caldav.types';
 
 /**
  * Read-only CalDAV-совместимый endpoint для календарей групп и преподавателей.
@@ -43,19 +46,20 @@ export class CalDavController {
     @Param('resource') resource: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
+    @Body() body: string | undefined,
   ): Promise<void> {
     await this.handleRequest(
       {
         type: 'group',
         value: groupName,
-        displayName: groupName,
-        getCalendar: () =>
-          this.calendarService.generateCalendarForGroup(groupName),
+        getCollection: () =>
+          this.calendarService.generateCalDavCalendarForGroup(groupName),
         notFoundMessage: 'Group not found by this name or id',
       },
       resource,
       req,
       res,
+      body,
     );
   }
 
@@ -66,19 +70,20 @@ export class CalDavController {
     @Param('resource') resource: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
+    @Body() body: string | undefined,
   ): Promise<void> {
     await this.handleRequest(
       {
         type: 'group',
         value: groupId,
-        displayName: `group:${groupId}`,
-        getCalendar: () =>
-          this.calendarService.generateCalendarForGroupId(groupId),
+        getCollection: () =>
+          this.calendarService.generateCalDavCalendarForGroupId(groupId),
         notFoundMessage: 'Group not found by this id',
       },
       resource,
       req,
       res,
+      body,
     );
   }
 
@@ -89,19 +94,20 @@ export class CalDavController {
     @Param('resource') resource: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
+    @Body() body: string | undefined,
   ): Promise<void> {
     await this.handleRequest(
       {
         type: 'teacher',
         value: teacherId,
-        displayName: `teacher:${teacherId}`,
-        getCalendar: () =>
-          this.calendarService.generateCalendarForTeacher(teacherId),
+        getCollection: () =>
+          this.calendarService.generateCalDavCalendarForTeacher(teacherId),
         notFoundMessage: 'Teacher not found',
       },
       resource,
       req,
       res,
+      body,
     );
   }
 
@@ -112,15 +118,13 @@ export class CalDavController {
     target: {
       type: 'group' | 'teacher';
       value: string | number;
-      displayName: string;
-      getCalendar: () => ReturnType<
-        CalendarService['generateCalendarForGroup']
-      >;
+      getCollection: () => Promise<CalDavCalendarCollection | null>;
       notFoundMessage: string;
     },
     resource: string | undefined,
     req: Request,
     res: Response,
+    body: string | undefined,
   ): Promise<void> {
     const method = req.method.toUpperCase();
     const stopTimer = this.metricsService.startCalendarRequestTimer({
@@ -139,36 +143,35 @@ export class CalDavController {
         return;
       }
 
-      if (resource && resource !== 'calendar.ics') {
+      const collection = await target.getCollection();
+      if (!collection) {
+        stopTimer('not_found');
+        throw new NotFoundException(target.notFoundMessage);
+      }
+      const collectionHref = this.getCollectionHref(req, resource);
+      const calendarResource = resource
+        ? collection.resources.find((candidate) => candidate.name === resource)
+        : undefined;
+
+      if (resource && !calendarResource) {
         stopTimer('not_found');
         throw new NotFoundException('Calendar resource not found');
       }
 
-      const generatedCalendar = await target.getCalendar();
-      if (!generatedCalendar) {
-        stopTimer('not_found');
-        throw new NotFoundException(target.notFoundMessage);
-      }
-      const calendar = this.calDavService.createCalendarResource(
-        generatedCalendar.toString(),
-      );
-      const collectionHref = this.getCollectionHref(req);
-
-      if (method === 'GET' || method === 'HEAD') {
-        this.sendCalendar(res, calendar, method === 'HEAD');
+      if ((method === 'GET' || method === 'HEAD') && calendarResource) {
+        this.sendCalendar(res, calendarResource, method === 'HEAD');
         stopTimer('success');
         return;
       }
       if (method === 'PROPFIND') {
-        const propfindResponse = resource
+        const propfindResponse = calendarResource
           ? this.calDavService.createCalendarResourcePropfindResponse(
-              `${collectionHref}calendar.ics`,
-              calendar,
+              `${collectionHref}${calendarResource.name}`,
+              calendarResource,
             )
-          : this.calDavService.createPropfindResponse(
+          : this.calDavService.createCollectionPropfindResponse(
               collectionHref,
-              target.displayName,
-              calendar,
+              collection,
               req.header('Depth'),
             );
         res
@@ -180,12 +183,25 @@ export class CalDavController {
         return;
       }
       if (method === 'REPORT') {
+        const report = this.calDavService.parseReportRequest(body);
+        if (!report) {
+          throw new BadRequestException('Unsupported or invalid CalDAV REPORT');
+        }
+        const reportResult = this.calDavService.getReportResources(
+          collection,
+          report,
+          req.header('Depth'),
+        );
         res
           .status(207)
           .type('application/xml; charset=utf-8')
           .set('DAV', '1, calendar-access')
           .send(
-            this.calDavService.createReportResponse(collectionHref, calendar),
+            this.calDavService.createReportResponse(
+              collectionHref,
+              reportResult,
+              report.includeCalendarData,
+            ),
           );
         stopTimer('success');
         return;
@@ -216,8 +232,17 @@ export class CalDavController {
       .send(isHeadRequest ? undefined : calendar.content);
   }
 
-  private getCollectionHref(req: Request): string {
-    const path = req.originalUrl.split('?')[0].replace(/\/calendar\.ics$/, '');
+  private getCollectionHref(
+    req: Request,
+    resource: string | undefined,
+  ): string {
+    const urlPath = req.originalUrl.split('?')[0];
+    const path = resource
+      ? urlPath.replace(
+          new RegExp(`/${resource.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`),
+          '',
+        )
+      : urlPath;
     return path.endsWith('/') ? path : `${path}/`;
   }
 }

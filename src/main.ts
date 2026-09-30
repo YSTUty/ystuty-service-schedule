@@ -9,6 +9,7 @@ import * as requestIp from 'request-ip';
 import * as swStats from 'swagger-stats';
 import { apiReference } from '@scalar/nestjs-api-reference';
 import { HtmlRenderingConfiguration } from '@scalar/types/dist/api-reference';
+import { text as expressText } from 'express';
 import helmet from 'helmet';
 
 import * as xEnv from '@my-environment';
@@ -47,6 +48,13 @@ async function bootstrap() {
 
   app.enableShutdownHooks();
   app.enableCors((req, callback) => callback(null, getCorsOptions(req)));
+  app.use(
+    '/v1/calendar/caldav',
+    expressText({
+      type: ['application/xml', 'text/xml'],
+      limit: '64kb',
+    }),
+  );
 
   // app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 

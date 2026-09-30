@@ -32,7 +32,7 @@ const createOptionsOperation = (
   operationId,
   tags: ['caldav'],
   summary: 'Получить поддерживаемые CalDAV-методы',
-  security: [],
+  security: getSecurity,
   parameters,
   responses: {
     [HttpStatus.NO_CONTENT]: {
@@ -135,13 +135,14 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
     };
     const webDavMethods = {
       PROPFIND: {
-        description: 'Возвращает свойства CalDAV-коллекции и calendar.ics.',
+        description:
+          'Возвращает свойства CalDAV-коллекции и её event resources.',
         successStatus: HttpStatus.MULTI_STATUS,
         responseContentType: 'application/xml; charset=utf-8',
       },
       REPORT: {
         description:
-          'Возвращает calendar-query/report с содержимым calendar.ics.',
+          'Поддерживает calendar-query с фильтром времени и calendar-multiget.',
         successStatus: HttpStatus.MULTI_STATUS,
         responseContentType: 'application/xml; charset=utf-8',
       },
@@ -152,10 +153,13 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
         name: 'resource',
         in: 'path',
         required: true,
-        description: 'Единственный доступный ресурс коллекции',
+        description:
+          'Стабильный event resource, найденный через PROPFIND или REPORT',
         schema: {
           type: 'string',
-          enum: ['calendar.ics'],
+          pattern: '^[a-f0-9]{64}\\.ics$',
+          example:
+            '4d967545c82b4ee9a07dff871a59ab9471ea7f2679d1a2f9ac51956279b23c6a.ics',
         },
       },
     ];
@@ -173,17 +177,6 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
       ...errorResponse(HttpStatus.NOT_FOUND, 'Календарь не найден'),
     };
     document.paths[targetPath.path] = {
-      get: {
-        ...baseOperation,
-        operationId: `calendar_caldavGet${targetPath.targetName}`,
-        summary: `Скачать CalDAV-календарь ${targetPath.target}`,
-      },
-      head: {
-        ...baseOperation,
-        operationId: `calendar_caldavHead${targetPath.targetName}`,
-        summary: `Проверить CalDAV-календарь ${targetPath.target}`,
-        responses: headResponses,
-      },
       options: createOptionsOperation(
         parameters,
         `calendar_caldavOptions${targetPath.targetName}`,
@@ -195,13 +188,13 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
       get: {
         ...baseOperation,
         operationId: `calendar_caldavGet${targetPath.targetName}Resource`,
-        summary: `Скачать calendar.ics ${targetPath.target}`,
+        summary: `Скачать event resource CalDAV-календаря ${targetPath.target}`,
         parameters: resourceParameters,
       },
       head: {
         ...baseOperation,
         operationId: `calendar_caldavHead${targetPath.targetName}Resource`,
-        summary: `Проверить calendar.ics ${targetPath.target}`,
+        summary: `Проверить event resource CalDAV-календаря ${targetPath.target}`,
         parameters: resourceParameters,
         responses: headResponses,
       },

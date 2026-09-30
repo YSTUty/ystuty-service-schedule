@@ -32,6 +32,7 @@ import {
 } from './entity';
 
 interface IExamDay {
+  id: number;
   date: Date;
   lessonName: string;
   auditoryName: string;
@@ -381,6 +382,7 @@ export class ScheduleService {
         .andWhere('e.data IS NOT NULL')
 
         .select('e.data', 'date')
+        .addSelect('e.idexam', 'id')
         .addSelect('p.namepredmet', 'lessonName')
         .addSelect('a.nameaudi', 'auditoryName')
         .addSelect('pr.fio1', 'teacherName')
@@ -612,6 +614,7 @@ export class ScheduleService {
         .andWhere('e.data IS NOT NULL')
 
         .select('e.data', 'date')
+        .addSelect('e.idexam', 'id')
         .addSelect('p.namepredmet', 'lessonName')
         .addSelect('a.nameaudi', 'auditoryName')
         .addSelect('g.namegroup', 'groupName')
@@ -703,6 +706,7 @@ export class ScheduleService {
         .andWhere('e.data IS NOT NULL')
 
         .select('e.data', 'date')
+        .addSelect('e.idexam', 'id')
         .addSelect('p.namepredmet', 'lessonName')
         .addSelect('a.nameaudi', 'auditoryName')
         .addSelect('g.namegroup', 'groupName')
@@ -1038,6 +1042,13 @@ export class ScheduleService {
         if (rType !== 'group') {
           (curLesson.groups ??= []).push(groupName);
         }
+        curLesson.calendarResourceKey = [
+          curLesson.calendarResourceKey,
+          `schedule:${raw.IDr}`,
+        ]
+          .filter(Boolean)
+          .sort()
+          .join(',');
         continue;
       }
 
@@ -1082,6 +1093,7 @@ export class ScheduleService {
 
       const lesson = new LessonDto({
         trainingId,
+        calendarResourceKey: `schedule:${raw.IDr}`,
         number,
         startAt,
         endAt: new Date(
@@ -1150,6 +1162,7 @@ export class ScheduleService {
       }
 
       const lessonFormat = new LessonDto({
+        calendarResourceKey: `exam:${exam.id}`,
         startAt: exam.date,
         endAt: moment(exam.date).add(23, 'hour').toDate(),
 

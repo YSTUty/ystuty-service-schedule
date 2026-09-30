@@ -20,10 +20,14 @@ export class CalDavBasicAuthGuard implements CanActivate {
     const req = http.getRequest<Request>();
     const res = http.getResponse<Response>();
 
-    // Bitrix24 начинает подключение с unauthenticated OPTIONS и может не
-    // повторить discovery-запрос после Basic challenge. Ответ не раскрывает
-    // содержимое календаря, поэтому пропускаем только этот метод.
-    if (req.method.toUpperCase() === 'OPTIONS') {
+    // CORS preflight не является CalDAV discovery и не содержит credentials.
+    // Настоящий OPTIONS должен получить Basic challenge, чтобы клиент повторил
+    // discovery с заданными пользователем логином и паролем.
+    if (
+      req.method.toUpperCase() === 'OPTIONS' &&
+      req.headers.origin &&
+      req.headers['access-control-request-method']
+    ) {
       return true;
     }
 

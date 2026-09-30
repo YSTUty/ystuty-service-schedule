@@ -88,11 +88,13 @@ describe('Calendar teacherId validation', () => {
     expect(calendarService.generateCalendarForTeacher).not.toHaveBeenCalled();
   });
 
-  it('lets CalDAV OPTIONS reach the controller instead of ending at CORS', async () => {
+  it('challenges unauthenticated CalDAV OPTIONS with Basic Auth', async () => {
     await request(app.getHttpServer())
       .options(`/v1/calendar/caldav/group/${encodeURIComponent('ЦИС-27')}`)
-      .expect(204)
-      .expect('dav', '1, calendar-access')
-      .expect('allow', 'OPTIONS, PROPFIND, REPORT, GET, HEAD');
+      .expect(401)
+      .expect(
+        'www-authenticate',
+        'Basic realm="YSTUty Calendar", charset="UTF-8"',
+      );
   });
 });

@@ -77,8 +77,6 @@ describe('OpenAPI document', () => {
     ).toHaveProperty('schedule:user');
     expect(document.paths['/v1/calendar/caldav/group/{groupName}']).toEqual(
       expect.objectContaining({
-        get: expect.any(Object),
-        head: expect.any(Object),
         options: expect.any(Object),
         'x-webdav-methods': expect.objectContaining({
           PROPFIND: expect.any(Object),
@@ -86,9 +84,9 @@ describe('OpenAPI document', () => {
         }),
       }),
     );
-    const teacherCalDavGet =
-      document.paths['/v1/calendar/caldav/teacher/{teacherId}'].get!;
-    expect(teacherCalDavGet.parameters).toEqual(
+    const teacherCalDavOptions =
+      document.paths['/v1/calendar/caldav/teacher/{teacherId}'].options!;
+    expect(teacherCalDavOptions.parameters).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           name: 'teacherId',
@@ -96,10 +94,9 @@ describe('OpenAPI document', () => {
         }),
       ]),
     );
-    expect(teacherCalDavGet.responses).toHaveProperty('400');
-    const groupIdCalDavGet =
-      document.paths['/v1/calendar/caldav/group-id/{groupId}'].get!;
-    expect(groupIdCalDavGet.parameters).toEqual(
+    const groupIdCalDavOptions =
+      document.paths['/v1/calendar/caldav/group-id/{groupId}'].options!;
+    expect(groupIdCalDavOptions.parameters).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           name: 'groupId',
@@ -107,11 +104,10 @@ describe('OpenAPI document', () => {
         }),
       ]),
     );
-    expect(groupIdCalDavGet.responses).toHaveProperty('400');
     expect(
       document.paths['/v1/calendar/caldav/group-id/{groupId}'].options!
         .security,
-    ).toStrictEqual([]);
+    ).toStrictEqual([{ caldavBasic: [] }]);
     expect(document.paths['/v1/calendar/group-id/{groupId}.ical']).toEqual(
       expect.objectContaining({
         get: expect.objectContaining({

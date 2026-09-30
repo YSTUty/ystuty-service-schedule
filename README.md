@@ -79,7 +79,13 @@ CalDAV повторяет структуру iCalendar:
 /v1/calendar/caldav/teacher/:teacherId
 ```
 
-Клиенту требуется Basic Auth с непустым логином; пароль не проверяется. Это
+Это read-only CalDAV-коллекции. Клиент получает список event resources через
+`PROPFIND Depth: 1`, затем синхронизирует их через `calendar-query` и
+`calendar-multiget`; URL отдельного `.ics` resource не нужно формировать
+вручную. Каждый resource содержит один `VEVENT` со стабильными UID и ETag.
+
+Клиенту требуется Basic Auth с непустым логином; пароль не проверяется. Первый
+CalDAV-запрос без credentials получает стандартный `401` challenge. Это
 формальная авторизация для совместимости с календарными приложениями, а не
 проверка пользователя.
 

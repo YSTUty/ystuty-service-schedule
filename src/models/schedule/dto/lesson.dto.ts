@@ -12,6 +12,11 @@ export class LessonDto {
   @Expose({ toClassOnly: true })
   @ApiHideProperty()
   trainingId?: number;
+
+  /** Стабильный ключ исходной записи для read-only CalDAV. */
+  @Expose({ toClassOnly: true })
+  @ApiHideProperty()
+  calendarResourceKey?: string;
   /**
    * Названия групп
    */

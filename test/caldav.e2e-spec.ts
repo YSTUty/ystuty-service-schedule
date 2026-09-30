@@ -31,7 +31,7 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
     authorization = `Basic ${Buffer.from(
       `${calDavUsername}:${calDavPassword}`,
     ).toString('base64')}`;
-    calendarResourceUrl = `${calDavUrl.replace(/\/$/, '')}/calendar.ics`;
+    calendarResourceUrl = '';
   });
 
   const requestCalDav = (
@@ -58,7 +58,7 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
     expect(response.headers.get('allow')).toContain('REPORT');
   });
 
-  it('discovers the collection and calendar.ics through PROPFIND', async () => {
+  it('discovers the collection and its event resources through PROPFIND', async () => {
     const response = await requestCalDav('PROPFIND', calDavUrl, {
       Depth: '1',
       'Content-Type': 'application/xml; charset=utf-8',
@@ -70,11 +70,14 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
     expect(body).toContain('<d:multistatus');
     expect(body).toContain('<c:calendar-query/>');
     expect(body).toContain('<c:calendar-multiget/>');
-    expect(body).toContain('calendar.ics');
     expect(body).toContain('<d:getetag>');
+
+    const resourceHref = body.match(/<d:href>([^<]+\.ics)<\/d:href>/)?.[1];
+    expect(resourceHref).toBeTruthy();
+    calendarResourceUrl = new URL(resourceHref!, calDavUrl).toString();
   });
 
-  it('returns resource properties for a PROPFIND to calendar.ics', async () => {
+  it('returns properties for a discovered calendar object resource', async () => {
     const response = await requestCalDav('PROPFIND', calendarResourceUrl, {
       Depth: '0',
       'Content-Type': 'application/xml; charset=utf-8',
@@ -88,7 +91,7 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
     expect(body).not.toContain('<d:collection/>');
   });
 
-  it('returns iCalendar data for a calendar-query REPORT', async () => {
+  it('returns matching iCalendar resources for a calendar-query REPORT', async () => {
     const response = await requestCalDav(
       'REPORT',
       calDavUrl,
@@ -107,9 +110,10 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
     expect(response.status).toBe(207);
     expect(body).toContain('BEGIN:VCALENDAR');
     expect(body).toContain('<d:getetag>');
+    expect(body).not.toContain('METHOD:PUBLISH');
   });
 
-  it('returns the discovered calendar resource through GET', async () => {
+  it('returns a discovered calendar object resource through GET', async () => {
     const response = await requestCalDav('GET', calendarResourceUrl);
 
     expect(response.status).toBe(200);
