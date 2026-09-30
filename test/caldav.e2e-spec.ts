@@ -9,6 +9,8 @@ const describeCalDavContract = runCalDavContractTests
   : describe.skip;
 
 const calDavUrl = process.env.CALDAV_TEST_URL;
+const expectedPublicCollectionUrl =
+  process.env.CALDAV_EXPECTED_PUBLIC_COLLECTION_URL;
 const calDavUsername = process.env.CALDAV_TEST_USERNAME ?? 'calendar-test';
 const calDavPassword = process.env.CALDAV_TEST_PASSWORD ?? '';
 
@@ -78,7 +80,16 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
     const resourceHref = body.match(/<d:href>([^<]+\.ics)<\/d:href>/)?.[1];
     expect(resourceHref).toBeTruthy();
     calendarResourceUrl = new URL(resourceHref!, calDavUrl).toString();
-    expect(calendarResourceUrl.startsWith(`${calDavUrl}/`)).toBe(true);
+    // Prefix может отличаться из-за public reverse proxy, но client должен
+    // получить ссылку на тот же публичный CalDAV origin.
+    expect(new URL(calendarResourceUrl).origin).toBe(
+      new URL(calDavUrl!).origin,
+    );
+    if (expectedPublicCollectionUrl) {
+      expect(
+        calendarResourceUrl.startsWith(`${expectedPublicCollectionUrl}/`),
+      ).toBe(true);
+    }
   });
 
   it('performs an initial RFC 6578 synchronization', async () => {
