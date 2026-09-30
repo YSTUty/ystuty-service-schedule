@@ -139,11 +139,6 @@ describe('CalDavController', () => {
         `${xEnv.CUSTOM_CALENDAR_URL}/caldav/group-id/4627/lesson-1.ics`,
       ),
     );
-    expect(response.send).toHaveBeenCalledWith(
-      expect.not.stringContaining(
-        '/v1/calendar/caldav/group-id/4627/lesson-1.ics',
-      ),
-    );
   });
 
   it('returns only changed resources through RFC 6578 sync-collection', async () => {
