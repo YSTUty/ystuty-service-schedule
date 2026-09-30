@@ -43,13 +43,22 @@ describe('CalDavController', () => {
     const metricsService = {
       startCalendarRequestTimer: jest.fn(() => stopTimer),
     };
+    const calDavSyncService = {
+      getChanges: jest.fn(),
+      getCurrentSnapshot: jest.fn().mockResolvedValue({
+        token: 'urn:ystuty:caldav:sync:collection:state',
+        resourceEtags: { 'lesson-1.ics': '"lesson-1"' },
+      }),
+    };
     return {
       calendarService,
+      calDavSyncService,
       metricsService,
       stopTimer,
       controller: new CalDavController(
         calendarService as any,
         new CalDavService(),
+        calDavSyncService as any,
         metricsService as any,
       ),
     };
@@ -115,6 +124,78 @@ describe('CalDavController', () => {
     expect(response.send).toHaveBeenCalledWith(
       expect.stringContaining('lesson-1.ics'),
     );
+    expect(response.send).toHaveBeenCalledWith(
+      expect.stringContaining('<d:sync-token>'),
+    );
+  });
+
+  it('returns only changed resources through RFC 6578 sync-collection', async () => {
+    const { controller, calDavSyncService } = createController();
+    const response = createResponse();
+    const request = {
+      header: jest.fn((name: string) => (name === 'Depth' ? '0' : undefined)),
+      method: 'REPORT',
+      originalUrl: '/v1/calendar/caldav/group-id/4627',
+    };
+    calDavSyncService.getChanges.mockResolvedValue({
+      isValid: true,
+      token: 'urn:ystuty:caldav:sync:collection:next',
+      resources: [collection.resources[0]],
+      deletedResourceNames: ['removed.ics'],
+    });
+
+    await controller.handleGroupIdRequest(
+      4627,
+      undefined,
+      request as any,
+      response as any,
+      `
+        <d:sync-collection xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+          <d:sync-token>urn:ystuty:caldav:sync:collection:state</d:sync-token>
+          <d:sync-level>1</d:sync-level>
+          <d:prop><d:getetag/><c:calendar-data/></d:prop>
+        </d:sync-collection>
+      `,
+    );
+
+    expect(response.status).toHaveBeenCalledWith(207);
+    expect(response.send).toHaveBeenCalledWith(
+      expect.stringContaining('lesson-1.ics'),
+    );
+    expect(response.send).toHaveBeenCalledWith(
+      expect.stringContaining('removed.ics'),
+    );
+  });
+
+  it('requires a full synchronization after an invalid sync-token', async () => {
+    const { controller, calDavSyncService, stopTimer } = createController();
+    const response = createResponse();
+    const request = {
+      header: jest.fn((name: string) => (name === 'Depth' ? '0' : undefined)),
+      method: 'REPORT',
+      originalUrl: '/v1/calendar/caldav/group-id/4627',
+    };
+    calDavSyncService.getChanges.mockResolvedValue({ isValid: false });
+
+    await controller.handleGroupIdRequest(
+      4627,
+      undefined,
+      request as any,
+      response as any,
+      `
+        <d:sync-collection xmlns:d="DAV:">
+          <d:sync-token>urn:ystuty:caldav:sync:expired</d:sync-token>
+          <d:sync-level>1</d:sync-level>
+          <d:prop><d:getetag/></d:prop>
+        </d:sync-collection>
+      `,
+    );
+
+    expect(response.status).toHaveBeenCalledWith(403);
+    expect(response.send).toHaveBeenCalledWith(
+      expect.stringContaining('<d:valid-sync-token/>'),
+    );
+    expect(stopTimer).toHaveBeenCalledWith('invalid_sync_token');
   });
 
   it('returns properties for an individual calendar object resource', async () => {

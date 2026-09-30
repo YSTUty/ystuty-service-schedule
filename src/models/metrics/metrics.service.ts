@@ -15,7 +15,11 @@ const CALENDAR_REQUEST_DURATION_BUCKETS = [
 type CalendarMetricProtocol = 'ical' | 'caldav';
 type CalendarMetricTargetType = 'group' | 'teacher';
 type CalendarMetricStatus =
-  'success' | 'not_found' | 'method_not_allowed' | 'error';
+  | 'success'
+  | 'not_found'
+  | 'method_not_allowed'
+  | 'invalid_sync_token'
+  | 'error';
 
 export interface CalendarRequestMetricParams {
   protocol: CalendarMetricProtocol;

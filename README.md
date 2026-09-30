@@ -82,7 +82,10 @@ CalDAV повторяет структуру iCalendar:
 Это read-only CalDAV-коллекции. Клиент получает список event resources через
 `PROPFIND Depth: 1`, затем синхронизирует их через `calendar-query` и
 `calendar-multiget`; URL отдельного `.ics` resource не нужно формировать
-вручную. Каждый resource содержит один `VEVENT` со стабильными UID и ETag.
+вручную. Для инкрементального обновления поддержан RFC 6578
+`sync-collection`: после первичной sync клиент получает только изменённые и
+удалённые resources. Каждый resource содержит один `VEVENT` со стабильными UID
+и ETag.
 
 Клиенту требуется Basic Auth с непустым логином; пароль не проверяется. Первый
 CalDAV-запрос без credentials получает стандартный `401` challenge. Это

@@ -33,10 +33,15 @@ describe('CalDavService', () => {
       '/v1/calendar/caldav/group-id/4627/',
       collection,
       '1',
+      'urn:ystuty:caldav:sync:collection:state',
     );
 
     expect(response).toContain('<c:calendar-query/>');
     expect(response).toContain('<c:calendar-multiget/>');
+    expect(response).toContain('<d:sync-collection/>');
+    expect(response).toContain(
+      '<d:sync-token>urn:ystuty:caldav:sync:collection:state</d:sync-token>',
+    );
     expect(response).toContain('first.ics');
     expect(response).toContain('second.ics');
     expect(response).toContain('<d:getetag>"first"</d:getetag>');
@@ -116,5 +121,38 @@ describe('CalDavService', () => {
         false,
       ),
     ).toContain('HTTP/1.1 404 Not Found');
+  });
+
+  it('parses sync-collection and includes the next sync-token in its response', () => {
+    const service = new CalDavService();
+    const report = service.parseReportRequest(`
+      <d:sync-collection xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+        <d:sync-token/>
+        <d:sync-level>1</d:sync-level>
+        <d:prop><d:getetag/><c:calendar-data/></d:prop>
+      </d:sync-collection>
+    `);
+
+    expect(report).toEqual({
+      type: 'sync-collection',
+      includeCalendarData: true,
+      syncToken: null,
+    });
+    expect(
+      service.createSyncCollectionResponse(
+        '/v1/calendar/caldav/group-id/4627/',
+        {
+          isValid: true,
+          token: 'urn:ystuty:caldav:sync:collection:state',
+          resources: [collection.resources[0]],
+          deletedResourceNames: ['removed.ics'],
+        },
+        true,
+      ),
+    ).toEqual(
+      expect.stringContaining(
+        '<d:sync-token>urn:ystuty:caldav:sync:collection:state</d:sync-token>',
+      ),
+    );
   });
 });

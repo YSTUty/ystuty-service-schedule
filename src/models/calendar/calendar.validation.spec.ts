@@ -7,6 +7,7 @@ import { getCorsOptions } from '../../common/config/cors.config';
 import { MetricsService } from '../metrics/metrics.service';
 
 import { CalDavBasicAuthGuard } from './caldav/caldav-basic-auth.guard';
+import { CalDavSyncService } from './caldav/caldav-sync.service';
 import { CalDavController } from './caldav/caldav.controller';
 import { CalDavService } from './caldav/caldav.service';
 import { CalendarController } from './calendar.controller';
@@ -26,6 +27,13 @@ const metricsService = {
   providers: [
     CalDavBasicAuthGuard,
     CalDavService,
+    {
+      provide: CalDavSyncService,
+      useValue: {
+        getChanges: jest.fn(),
+        getCurrentSnapshot: jest.fn(),
+      },
+    },
     { provide: CalendarService, useValue: calendarService },
     { provide: MetricsService, useValue: metricsService },
   ],

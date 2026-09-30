@@ -17,3 +17,20 @@ export interface CalDavCalendarCollection {
   description: string;
   resources: CalDavCalendarResource[];
 }
+
+/** Снимок состояния collection для RFC 6578 incremental sync. */
+export interface CalDavSyncSnapshot {
+  token: string;
+  resourceEtags: Record<string, string>;
+}
+
+export type CalDavSyncResult =
+  | {
+      isValid: true;
+      token: string;
+      resources: CalDavCalendarResource[];
+      deletedResourceNames: string[];
+    }
+  | {
+      isValid: false;
+    };

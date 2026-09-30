@@ -2,6 +2,7 @@ import { INestApplication, Module, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
 import { CalDavBasicAuthGuard } from '../calendar/caldav/caldav-basic-auth.guard';
+import { CalDavSyncService } from '../calendar/caldav/caldav-sync.service';
 import { CalDavController } from '../calendar/caldav/caldav.controller';
 import { CalDavService } from '../calendar/caldav/caldav.service';
 import { CalendarController } from '../calendar/calendar.controller';
@@ -25,6 +26,7 @@ import { createOpenApiDocument } from './openapi';
     { provide: ScheduleService, useValue: {} },
     { provide: CalendarService, useValue: {} },
     { provide: CalDavService, useValue: {} },
+    { provide: CalDavSyncService, useValue: {} },
     { provide: MetricsService, useValue: {} },
   ],
 })

@@ -22,6 +22,7 @@ import { MetricsService } from '../../metrics/metrics.service';
 import { CalendarService } from '../calendar.service';
 
 import { CalDavBasicAuthGuard } from './caldav-basic-auth.guard';
+import { CalDavSyncService } from './caldav-sync.service';
 import { CalDavService } from './caldav.service';
 import { CalDavCalendarCollection } from './caldav.types';
 
@@ -36,6 +37,7 @@ export class CalDavController {
   constructor(
     private readonly calendarService: CalendarService,
     private readonly calDavService: CalDavService,
+    private readonly calDavSyncService: CalDavSyncService,
     private readonly metricsService: MetricsService,
   ) {}
 
@@ -52,6 +54,7 @@ export class CalDavController {
       {
         type: 'group',
         value: groupName,
+        syncKey: `group-name:${groupName}`,
         getCollection: () =>
           this.calendarService.generateCalDavCalendarForGroup(groupName),
         notFoundMessage: 'Group not found by this name or id',
@@ -76,6 +79,7 @@ export class CalDavController {
       {
         type: 'group',
         value: groupId,
+        syncKey: `group-id:${groupId}`,
         getCollection: () =>
           this.calendarService.generateCalDavCalendarForGroupId(groupId),
         notFoundMessage: 'Group not found by this id',
@@ -100,6 +104,7 @@ export class CalDavController {
       {
         type: 'teacher',
         value: teacherId,
+        syncKey: `teacher:${teacherId}`,
         getCollection: () =>
           this.calendarService.generateCalDavCalendarForTeacher(teacherId),
         notFoundMessage: 'Teacher not found',
@@ -118,6 +123,7 @@ export class CalDavController {
     target: {
       type: 'group' | 'teacher';
       value: string | number;
+      syncKey: string;
       getCollection: () => Promise<CalDavCalendarCollection | null>;
       notFoundMessage: string;
     },
@@ -173,6 +179,12 @@ export class CalDavController {
               collectionHref,
               collection,
               req.header('Depth'),
+              (
+                await this.calDavSyncService.getCurrentSnapshot(
+                  this.getSyncCollectionKey(target),
+                  collection,
+                )
+              ).token,
             );
         res
           .status(207)
@@ -186,6 +198,41 @@ export class CalDavController {
         const report = this.calDavService.parseReportRequest(body);
         if (!report) {
           throw new BadRequestException('Unsupported or invalid CalDAV REPORT');
+        }
+        if (report.type === 'sync-collection') {
+          // RFC 6578 sync-collection обрабатывает только саму collection.
+          if ((req.header('Depth') ?? '0') !== '0') {
+            throw new BadRequestException(
+              'CalDAV sync-collection requires Depth: 0',
+            );
+          }
+          const syncResult = await this.calDavSyncService.getChanges(
+            this.getSyncCollectionKey(target),
+            collection,
+            report.syncToken,
+          );
+          if (!syncResult.isValid) {
+            res
+              .status(HttpStatus.FORBIDDEN)
+              .type('application/xml; charset=utf-8')
+              .set('DAV', '1, calendar-access, sync-collection')
+              .send(this.calDavService.createInvalidSyncTokenResponse());
+            stopTimer('invalid_sync_token');
+            return;
+          }
+          res
+            .status(HttpStatus.MULTI_STATUS)
+            .type('application/xml; charset=utf-8')
+            .set('DAV', '1, calendar-access, sync-collection')
+            .send(
+              this.calDavService.createSyncCollectionResponse(
+                collectionHref,
+                syncResult,
+                report.includeCalendarData,
+              ),
+            );
+          stopTimer('success');
+          return;
         }
         const reportResult = this.calDavService.getReportResources(
           collection,
@@ -244,5 +291,9 @@ export class CalDavController {
         )
       : urlPath;
     return path.endsWith('/') ? path : `${path}/`;
+  }
+
+  private getSyncCollectionKey(target: { syncKey: string }): string {
+    return target.syncKey;
   }
 }

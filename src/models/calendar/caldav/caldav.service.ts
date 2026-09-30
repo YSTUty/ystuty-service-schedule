@@ -5,6 +5,7 @@ import { XMLParser } from 'fast-xml-parser';
 import {
   CalDavCalendarCollection,
   CalDavCalendarResource,
+  CalDavSyncResult,
 } from './caldav.types';
 
 interface CalDavCalendarQuery {
@@ -19,7 +20,14 @@ interface CalDavCalendarMultiGet {
   hrefs: string[];
 }
 
-type CalDavReportRequest = CalDavCalendarQuery | CalDavCalendarMultiGet;
+interface CalDavSyncCollection {
+  type: 'sync-collection';
+  includeCalendarData: boolean;
+  syncToken: string | null;
+}
+
+type CalDavReportRequest =
+  CalDavCalendarQuery | CalDavCalendarMultiGet | CalDavSyncCollection;
 
 interface CalDavReportResult {
   resources: CalDavCalendarResource[];
@@ -37,7 +45,7 @@ export class CalDavService {
   getOptionsHeaders(): Record<string, string> {
     return {
       Allow: 'OPTIONS, PROPFIND, REPORT, GET, HEAD',
-      DAV: '1, calendar-access',
+      DAV: '1, calendar-access, sync-collection',
       'MS-Author-Via': 'DAV',
     };
   }
@@ -86,6 +94,24 @@ export class CalDavService {
       };
     }
 
+    const syncCollection = document['sync-collection'];
+    if (this.isRecord(syncCollection)) {
+      const syncLevel = syncCollection['sync-level'];
+      const syncToken = syncCollection['sync-token'];
+      if (
+        (syncLevel !== '1' && syncLevel !== 1) ||
+        (syncToken !== '' && typeof syncToken !== 'string')
+      ) {
+        return null;
+      }
+
+      return {
+        type: 'sync-collection',
+        includeCalendarData: this.hasElement(syncCollection, 'calendar-data'),
+        syncToken: syncToken || null,
+      };
+    }
+
     return null;
   }
 
@@ -95,6 +121,9 @@ export class CalDavService {
     report: CalDavReportRequest,
     depth: string | undefined,
   ): CalDavReportResult {
+    if (report.type === 'sync-collection') {
+      return { resources: [], missingHrefs: [] };
+    }
     if (report.type === 'calendar-multiget') {
       const resourcesByName = new Map(
         collection.resources.map((resource) => [resource.name, resource]),
@@ -141,12 +170,14 @@ export class CalDavService {
     collectionHref: string,
     collection: CalDavCalendarCollection,
     depth: string | undefined,
+    syncToken: string,
   ): string {
     const responses = [
       this.createCollectionResponse(
         collectionHref,
         collection.name,
         collection.description,
+        syncToken,
       ),
     ];
     if (depth === '1' || depth === 'infinity') {
@@ -178,26 +209,55 @@ export class CalDavService {
     collectionHref: string,
     reportResult: CalDavReportResult,
     includeCalendarData: boolean,
+    syncToken?: string,
   ): string {
-    return this.createMultistatus([
-      ...reportResult.resources.map((resource) =>
-        this.createCalendarObjectResponse(
-          `${collectionHref}${resource.name}`,
-          resource,
-          includeCalendarData,
-          true,
+    return this.createMultistatus(
+      [
+        ...reportResult.resources.map((resource) =>
+          this.createCalendarObjectResponse(
+            `${collectionHref}${resource.name}`,
+            resource,
+            includeCalendarData,
+            true,
+          ),
         ),
-      ),
-      ...reportResult.missingHrefs.map((href) =>
-        this.createNotFoundResponse(href),
-      ),
-    ]);
+        ...reportResult.missingHrefs.map((href) =>
+          this.createNotFoundResponse(href),
+        ),
+      ],
+      syncToken,
+    );
+  }
+
+  /** Формирует RFC 6578 response с изменениями после sync-token клиента. */
+  createSyncCollectionResponse(
+    collectionHref: string,
+    syncResult: Extract<CalDavSyncResult, { isValid: true }>,
+    includeCalendarData: boolean,
+  ): string {
+    return this.createReportResponse(
+      collectionHref,
+      {
+        resources: syncResult.resources,
+        missingHrefs: syncResult.deletedResourceNames.map(
+          (name) => `${collectionHref}${name}`,
+        ),
+      },
+      includeCalendarData,
+      syncResult.token,
+    );
+  }
+
+  createInvalidSyncTokenResponse(): string {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+      <d:error xmlns:d="DAV:"><d:valid-sync-token/></d:error>`;
   }
 
   private createCollectionResponse(
     collectionHref: string,
     calendarName: string,
     calendarDescription: string,
+    syncToken: string,
   ): string {
     return `
       <d:response>
@@ -209,9 +269,11 @@ export class CalDavService {
             <c:calendar-description xml:lang="ru">${this.escapeXml(calendarDescription)}</c:calendar-description>
             <c:supported-calendar-component-set><c:comp name="VEVENT"/></c:supported-calendar-component-set>
             <c:supported-calendar-data><c:calendar-data content-type="text/calendar" version="2.0"/></c:supported-calendar-data>
+            <d:sync-token>${this.escapeXml(syncToken)}</d:sync-token>
             <d:supported-report-set>
               <d:supported-report><d:report><c:calendar-query/></d:report></d:supported-report>
               <d:supported-report><d:report><c:calendar-multiget/></d:report></d:supported-report>
+              <d:supported-report><d:report><d:sync-collection/></d:report></d:supported-report>
             </d:supported-report-set>
           </d:prop>
           <d:status>HTTP/1.1 200 OK</d:status>
@@ -369,12 +431,13 @@ export class CalDavService {
     return typeof value === 'object' && value !== null;
   }
 
-  private createMultistatus(responses: string[]): string {
+  private createMultistatus(responses: string[], syncToken?: string): string {
     return `<?xml version="1.0" encoding="UTF-8"?>
       <d:multistatus
         xmlns:d="DAV:"
         xmlns:c="urn:ietf:params:xml:ns:caldav">
         ${responses.join('')}
+        ${syncToken ? `<d:sync-token>${this.escapeXml(syncToken)}</d:sync-token>` : ''}
       </d:multistatus>`;
   }
 

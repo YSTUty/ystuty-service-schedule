@@ -47,7 +47,7 @@ const createOptionsOperation = (
         DAV: {
           schema: {
             type: 'string',
-            example: '1, calendar-access',
+            example: '1, calendar-access, sync-collection',
           },
         },
       },
@@ -142,7 +142,7 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
       },
       REPORT: {
         description:
-          'Поддерживает calendar-query с фильтром времени и calendar-multiget.',
+          'Поддерживает calendar-query с фильтром времени, calendar-multiget и RFC 6578 sync-collection.',
         successStatus: HttpStatus.MULTI_STATUS,
         responseContentType: 'application/xml; charset=utf-8',
       },

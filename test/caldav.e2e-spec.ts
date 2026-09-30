@@ -15,6 +15,7 @@ const calDavPassword = process.env.CALDAV_TEST_PASSWORD ?? '';
 describeCalDavContract('CalDAV protocol contract (e2e)', () => {
   let authorization: string;
   let calendarResourceUrl: string;
+  let syncToken: string;
 
   beforeAll(() => {
     if (!calDavUrl) {
@@ -32,6 +33,7 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
       `${calDavUsername}:${calDavPassword}`,
     ).toString('base64')}`;
     calendarResourceUrl = '';
+    syncToken = '';
   });
 
   const requestCalDav = (
@@ -70,11 +72,57 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
     expect(body).toContain('<d:multistatus');
     expect(body).toContain('<c:calendar-query/>');
     expect(body).toContain('<c:calendar-multiget/>');
+    expect(body).toContain('<d:sync-collection/>');
     expect(body).toContain('<d:getetag>');
 
     const resourceHref = body.match(/<d:href>([^<]+\.ics)<\/d:href>/)?.[1];
     expect(resourceHref).toBeTruthy();
     calendarResourceUrl = new URL(resourceHref!, calDavUrl).toString();
+  });
+
+  it('performs an initial RFC 6578 synchronization', async () => {
+    const response = await requestCalDav(
+      'REPORT',
+      calDavUrl,
+      {
+        Depth: '0',
+        'Content-Type': 'application/xml; charset=utf-8',
+      },
+      `<?xml version="1.0" encoding="UTF-8"?>
+        <d:sync-collection xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+          <d:sync-token/>
+          <d:sync-level>1</d:sync-level>
+          <d:prop><d:getetag/><c:calendar-data/></d:prop>
+        </d:sync-collection>`,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(207);
+    expect(body).toContain('<c:calendar-data>');
+    syncToken = body.match(/<d:sync-token>([^<]+)<\/d:sync-token>/)?.[1] ?? '';
+    expect(syncToken).toContain('urn:ystuty:caldav:sync:');
+  });
+
+  it('performs RFC 6578 incremental synchronization for an unchanged calendar', async () => {
+    const response = await requestCalDav(
+      'REPORT',
+      calDavUrl,
+      {
+        Depth: '0',
+        'Content-Type': 'application/xml; charset=utf-8',
+      },
+      `<?xml version="1.0" encoding="UTF-8"?>
+        <d:sync-collection xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+          <d:sync-token>${syncToken}</d:sync-token>
+          <d:sync-level>1</d:sync-level>
+          <d:prop><d:getetag/><c:calendar-data/></d:prop>
+        </d:sync-collection>`,
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(207);
+    expect(body).toContain(`<d:sync-token>${syncToken}</d:sync-token>`);
+    expect(body).not.toContain('<c:calendar-data>');
   });
 
   it('returns properties for a discovered calendar object resource', async () => {
