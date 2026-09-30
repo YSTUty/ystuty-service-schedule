@@ -28,7 +28,10 @@ import { CalendarService } from '../calendar.service';
 import { CalDavBasicAuthGuard } from './caldav-basic-auth.guard';
 import { CalDavSyncService } from './caldav-sync.service';
 import { CalDavService } from './caldav.service';
-import { CalDavCalendarCollection } from './caldav.types';
+import {
+  CalDavCalendarCollection,
+  CalDavCalendarResource,
+} from './caldav.types';
 
 interface CalDavTarget {
   type: 'group' | 'teacher';
@@ -41,6 +44,7 @@ interface CalDavTarget {
 
 interface CalDavRequestLogDetails {
   depth?: string;
+  requestedProperties?: string;
   reportType?: 'calendar-query' | 'calendar-multiget' | 'sync-collection';
   eventResources?: number;
   totalEventResources?: number;
@@ -74,7 +78,7 @@ export class CalDavController {
     @Param('resource') resource: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
-    @Body() body: string | undefined,
+    @Body() body?: string,
   ): Promise<void> {
     await this.handleRequest(
       this.createGroupTarget(groupName),
@@ -92,7 +96,7 @@ export class CalDavController {
     @Param('resource') resource: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
-    @Body() body: string | undefined,
+    @Body() body?: string,
   ): Promise<void> {
     await this.handleRequest(
       this.createGroupIdTarget(groupId),
@@ -110,7 +114,7 @@ export class CalDavController {
     @Param('resource') resource: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
-    @Body() body: string | undefined,
+    @Body() body?: string,
   ): Promise<void> {
     await this.handleRequest(
       this.createTeacherTarget(teacherId),
@@ -127,11 +131,13 @@ export class CalDavController {
     @Param('groupName') groupName: string,
     @Req() req: Request,
     @Res() res: Response,
+    @Body() body?: string,
   ): Promise<void> {
     await this.handlePrincipalRequest(
       this.createGroupTarget(groupName),
       req,
       res,
+      body,
     );
   }
 
@@ -141,11 +147,13 @@ export class CalDavController {
     @Param('groupId', ParseIntPipe) groupId: number,
     @Req() req: Request,
     @Res() res: Response,
+    @Body() body?: string,
   ): Promise<void> {
     await this.handlePrincipalRequest(
       this.createGroupIdTarget(groupId),
       req,
       res,
+      body,
     );
   }
 
@@ -155,11 +163,13 @@ export class CalDavController {
     @Param('teacherId', ParseIntPipe) teacherId: number,
     @Req() req: Request,
     @Res() res: Response,
+    @Body() body?: string,
   ): Promise<void> {
     await this.handlePrincipalRequest(
       this.createTeacherTarget(teacherId),
       req,
       res,
+      body,
     );
   }
 
@@ -169,11 +179,13 @@ export class CalDavController {
     @Param('groupName') groupName: string,
     @Req() req: Request,
     @Res() res: Response,
+    @Body() body?: string,
   ): Promise<void> {
     await this.handleCalendarHomeRequest(
       this.createGroupTarget(groupName),
       req,
       res,
+      body,
     );
   }
 
@@ -183,11 +195,13 @@ export class CalDavController {
     @Param('groupId', ParseIntPipe) groupId: number,
     @Req() req: Request,
     @Res() res: Response,
+    @Body() body?: string,
   ): Promise<void> {
     await this.handleCalendarHomeRequest(
       this.createGroupIdTarget(groupId),
       req,
       res,
+      body,
     );
   }
 
@@ -197,11 +211,13 @@ export class CalDavController {
     @Param('teacherId', ParseIntPipe) teacherId: number,
     @Req() req: Request,
     @Res() res: Response,
+    @Body() body?: string,
   ): Promise<void> {
     await this.handleCalendarHomeRequest(
       this.createTeacherTarget(teacherId),
       req,
       res,
+      body,
     );
   }
 
@@ -213,7 +229,7 @@ export class CalDavController {
     resource: string | undefined,
     req: Request,
     res: Response,
-    body: string | undefined,
+    body?: string,
   ): Promise<void> {
     const method = req.method.toUpperCase();
     const stopTimer = this.metricsService.startCalendarRequestTimer({
@@ -244,7 +260,7 @@ export class CalDavController {
         stopTimer('not_found');
         throw new NotFoundException(target.notFoundMessage);
       }
-      const collectionHref = this.getCollectionHref(target);
+      const collectionHref = this.getCollectionHref(req, target);
       const calendarResource = resource
         ? collection.resources.find((candidate) => candidate.name === resource)
         : undefined;
@@ -269,10 +285,15 @@ export class CalDavController {
       }
       if (method === 'PROPFIND') {
         const depth = this.getRequestDepth(req);
+        const propfind = this.calDavService.parsePropfindRequest(body);
+        if (!propfind) {
+          throw new BadRequestException('Invalid CalDAV PROPFIND');
+        }
         const propfindResponse = calendarResource
           ? this.calDavService.createCalendarResourcePropfindResponse(
               `${collectionHref}${calendarResource.name}`,
               calendarResource,
+              propfind,
             )
           : this.calDavService.createCollectionPropfindResponse(
               collectionHref,
@@ -284,7 +305,8 @@ export class CalDavController {
                   collection,
                 )
               ).token,
-              this.getPrincipalHref(target),
+              this.getPrincipalHref(req, target),
+              propfind,
             );
         res
           .status(207)
@@ -307,6 +329,7 @@ export class CalDavController {
             totalEventResources: calendarResource
               ? undefined
               : collection.resources.length,
+            requestedProperties: this.getPropfindProperties(propfind),
           },
         );
         return;
@@ -450,6 +473,7 @@ export class CalDavController {
     target: CalDavTarget,
     req: Request,
     res: Response,
+    body?: string,
   ): Promise<void> {
     const method = req.method.toUpperCase();
     try {
@@ -486,14 +510,19 @@ export class CalDavController {
       if (!collection) {
         throw new NotFoundException(target.notFoundMessage);
       }
+      const propfind = this.calDavService.parsePropfindRequest(body);
+      if (!propfind) {
+        throw new BadRequestException('Invalid CalDAV PROPFIND');
+      }
       res
         .status(HttpStatus.MULTI_STATUS)
         .type('application/xml; charset=utf-8')
         .set('DAV', '1, calendar-access')
         .send(
           this.calDavService.createPrincipalPropfindResponse(
-            this.getPrincipalHref(target),
-            this.getCalendarHomeHref(target),
+            this.getPrincipalHref(req, target),
+            this.getCalendarHomeHref(req, target),
+            propfind,
           ),
         );
       this.logRequest(
@@ -503,7 +532,10 @@ export class CalDavController {
         method,
         HttpStatus.MULTI_STATUS,
         undefined,
-        { depth: this.getRequestDepth(req) },
+        {
+          depth: this.getRequestDepth(req),
+          requestedProperties: this.getPropfindProperties(propfind),
+        },
       );
     } catch (error) {
       this.logRequest(
@@ -524,6 +556,7 @@ export class CalDavController {
     target: CalDavTarget,
     req: Request,
     res: Response,
+    body?: string,
   ): Promise<void> {
     const method = req.method.toUpperCase();
     try {
@@ -566,18 +599,23 @@ export class CalDavController {
           collection,
         )
       ).token;
+      const propfind = this.calDavService.parsePropfindRequest(body);
+      if (!propfind) {
+        throw new BadRequestException('Invalid CalDAV PROPFIND');
+      }
       res
         .status(HttpStatus.MULTI_STATUS)
         .type('application/xml; charset=utf-8')
         .set('DAV', '1, calendar-access')
         .send(
           this.calDavService.createCalendarHomePropfindResponse(
-            this.getCalendarHomeHref(target),
-            this.getCollectionHref(target),
+            this.getCalendarHomeHref(req, target),
+            this.getCollectionHref(req, target),
             collection,
             this.getRequestDepth(req),
             syncToken,
-            this.getPrincipalHref(target),
+            this.getPrincipalHref(req, target),
+            propfind,
           ),
         );
       this.logRequest(
@@ -590,6 +628,7 @@ export class CalDavController {
         {
           depth: this.getRequestDepth(req),
           calendarCollections: this.hasDepthOneOrMore(req) ? 1 : 0,
+          requestedProperties: this.getPropfindProperties(propfind),
         },
       );
     } catch (error) {
@@ -608,7 +647,7 @@ export class CalDavController {
 
   private sendCalendar(
     res: Response,
-    calendar: { content: string; etag: string },
+    calendar: CalDavCalendarResource,
     isHeadRequest: boolean,
   ): void {
     res
@@ -616,35 +655,60 @@ export class CalDavController {
       .set({
         'Content-Type': 'text/calendar; charset=utf-8',
         ETag: calendar.etag,
+        'Last-Modified': this.calDavService
+          .getResourceLastModified(calendar)
+          .toUTCString(),
       })
       .send(isHeadRequest ? undefined : calendar.content);
   }
 
   /**
-   * Path-relative href сохраняет origin, по которому клиент открыл collection.
-   * Это исключает потерю Basic Auth при разных public-доменах reverse proxy.
+   * Использует public origin текущего HTTPS-запроса, если Express доверяет
+   * reverse proxy. Абсолютные href лучше совместимы со старыми DAV-клиентами.
    */
-  private getCollectionHref(target: { publicCollectionPath: string }): string {
-    return `${this.getCalDavBasePath()}/${target.publicCollectionPath}/`;
+  private getCollectionHref(
+    req: Request,
+    target: { publicCollectionPath: string },
+  ): string {
+    return `${this.getCalDavBaseUrl(req)}/${target.publicCollectionPath}/`;
   }
 
-  private getPrincipalHref(target: { publicCollectionPath: string }): string {
-    return `${this.getCalDavBasePath()}/principals/${target.publicCollectionPath}/`;
+  private getPrincipalHref(
+    req: Request,
+    target: { publicCollectionPath: string },
+  ): string {
+    return `${this.getCalDavBaseUrl(req)}/principals/${target.publicCollectionPath}/`;
   }
 
-  private getCalendarHomeHref(target: {
-    publicCollectionPath: string;
-  }): string {
-    return `${this.getCalDavBasePath()}/homes/${target.publicCollectionPath}/`;
+  private getCalendarHomeHref(
+    req: Request,
+    target: { publicCollectionPath: string },
+  ): string {
+    return `${this.getCalDavBaseUrl(req)}/homes/${target.publicCollectionPath}/`;
   }
 
-  private getCalDavBasePath(): string {
-    const calendarPath = new URL(xEnv.CUSTOM_CALENDAR_URL).pathname.replace(
-      /\/+$/,
-      '',
-    );
+  private getCalDavBaseUrl(req: Request): string {
+    const configuredUrl = new URL(xEnv.CUSTOM_CALENDAR_URL);
+    const calendarPath = configuredUrl.pathname.replace(/\/+$/, '');
+    const requestHost = req.header('Host');
+    const origin =
+      req.secure && requestHost
+        ? (this.getRequestOrigin(req.protocol, requestHost) ??
+          configuredUrl.origin)
+        : configuredUrl.origin;
 
-    return `${calendarPath}/caldav`;
+    return `${origin}${calendarPath}/caldav`;
+  }
+
+  /** Возвращает origin только для валидных данных уже доверенного proxy. */
+  private getRequestOrigin(protocol: string, host: string): string | null {
+    try {
+      const url = new URL(`${protocol}://${host}`);
+
+      return url.origin;
+    } catch {
+      return null;
+    }
   }
 
   private getSyncCollectionKey(target: { syncKey: string }): string {
@@ -665,6 +729,9 @@ export class CalDavController {
     const detailParts: string[] = [];
     if (details.depth) {
       detailParts.push(`depth=${details.depth}`);
+    }
+    if (details.requestedProperties) {
+      detailParts.push(`properties=${details.requestedProperties}`);
     }
     if (details.reportType) {
       detailParts.push(`report=${details.reportType}`);
@@ -707,6 +774,20 @@ export class CalDavController {
   /** RFC 4791: без заголовка Depth для collection подразумевается `0`. */
   private getRequestDepth(req: Request): string {
     return req.header('Depth') ?? '0';
+  }
+
+  /** Ограничивает список имён свойств, чтобы не раздувать production-логи. */
+  private getPropfindProperties(propfind: {
+    mode: 'allprop' | 'prop' | 'propname';
+    properties: string[];
+  }): string {
+    if (propfind.mode !== 'prop') {
+      return propfind.mode;
+    }
+
+    const properties = propfind.properties.slice(0, 12).join(',');
+
+    return propfind.properties.length > 12 ? `${properties},…` : properties;
   }
 
   private hasDepthOneOrMore(req: Request): boolean {

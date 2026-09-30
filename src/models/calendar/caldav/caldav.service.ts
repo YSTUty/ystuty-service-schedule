@@ -40,6 +40,16 @@ interface CalDavReportResult {
   missingHrefs: string[];
 }
 
+interface CalDavPropfindRequest {
+  mode: 'allprop' | 'prop' | 'propname';
+  properties: string[];
+}
+
+interface CalDavXmlProperty {
+  name: string;
+  value: string;
+}
+
 @Injectable()
 export class CalDavService {
   private readonly xmlParser = new XMLParser({
@@ -50,6 +60,44 @@ export class CalDavService {
 
   getOptionsHeaders(): Record<string, string> {
     return CALDAV_OPTIONS_HEADERS;
+  }
+
+  /**
+   * Извлекает только имена свойств из PROPFIND. Они нужны и для корректного
+   * propstat-ответа, и для безопасной диагностики без записи XML body в лог.
+   */
+  parsePropfindRequest(body: unknown): CalDavPropfindRequest | null {
+    if (typeof body !== 'string' || !body.trim()) {
+      return { mode: 'allprop', properties: [] };
+    }
+
+    let document: Record<string, unknown>;
+    try {
+      document = this.xmlParser.parse(body) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+
+    const propfind = document.propfind;
+    if (!this.isRecord(propfind)) {
+      return null;
+    }
+    if ('propname' in propfind) {
+      return { mode: 'propname', properties: [] };
+    }
+    if ('allprop' in propfind) {
+      return { mode: 'allprop', properties: [] };
+    }
+    if (!('prop' in propfind)) {
+      return null;
+    }
+
+    const prop = propfind.prop;
+    const properties = this.isRecord(prop)
+      ? Object.keys(prop).filter((property) => !property.startsWith('@_'))
+      : [];
+
+    return { mode: 'prop', properties };
   }
 
   /**
@@ -174,6 +222,7 @@ export class CalDavService {
     depth: string | undefined,
     syncToken: string,
     principalHref?: string,
+    request: CalDavPropfindRequest = { mode: 'allprop', properties: [] },
   ): string {
     const responses = [
       this.createCollectionResponse(
@@ -182,14 +231,16 @@ export class CalDavService {
         collection.description,
         syncToken,
         principalHref,
+        request,
       ),
     ];
     if (depth === '1' || depth === 'infinity') {
       responses.push(
         ...collection.resources.map((resource) =>
-          this.createCalendarObjectResponse(
+          this.createCalendarObjectPropfindResponse(
             `${collectionHref}${resource.name}`,
             resource,
+            request,
           ),
         ),
       );
@@ -205,21 +256,27 @@ export class CalDavService {
   createPrincipalPropfindResponse(
     principalHref: string,
     calendarHomeHref: string,
+    request: CalDavPropfindRequest = { mode: 'allprop', properties: [] },
   ): string {
     return this.createMultistatus([
-      `
-        <d:response>
-          <d:href>${this.escapeXml(principalHref)}</d:href>
-          <d:propstat>
-            <d:prop>
-              <d:resourcetype><d:principal/></d:resourcetype>
-              <d:displayname>YSTUty Calendar</d:displayname>
-              <c:calendar-home-set><d:href>${this.escapeXml(calendarHomeHref)}</d:href></c:calendar-home-set>
-            </d:prop>
-            <d:status>HTTP/1.1 200 OK</d:status>
-          </d:propstat>
-        </d:response>
-      `,
+      this.createPropfindResponse(
+        principalHref,
+        [
+          {
+            name: 'resourcetype',
+            value: '<d:resourcetype><d:principal/></d:resourcetype>',
+          },
+          {
+            name: 'displayname',
+            value: '<d:displayname>YSTUty Calendar</d:displayname>',
+          },
+          {
+            name: 'calendar-home-set',
+            value: `<c:calendar-home-set><d:href>${this.escapeXml(calendarHomeHref)}</d:href></c:calendar-home-set>`,
+          },
+        ],
+        request,
+      ),
     ]);
   }
 
@@ -231,21 +288,27 @@ export class CalDavService {
     depth: string | undefined,
     syncToken: string,
     principalHref: string,
+    request: CalDavPropfindRequest = { mode: 'allprop', properties: [] },
   ): string {
     const responses = [
-      `
-        <d:response>
-          <d:href>${this.escapeXml(calendarHomeHref)}</d:href>
-          <d:propstat>
-            <d:prop>
-              <d:resourcetype><d:collection/></d:resourcetype>
-              <d:displayname>YSTUty Calendars</d:displayname>
-              <d:current-user-principal><d:href>${this.escapeXml(principalHref)}</d:href></d:current-user-principal>
-            </d:prop>
-            <d:status>HTTP/1.1 200 OK</d:status>
-          </d:propstat>
-        </d:response>
-      `,
+      this.createPropfindResponse(
+        calendarHomeHref,
+        [
+          {
+            name: 'resourcetype',
+            value: '<d:resourcetype><d:collection/></d:resourcetype>',
+          },
+          {
+            name: 'displayname',
+            value: '<d:displayname>YSTUty Calendars</d:displayname>',
+          },
+          {
+            name: 'current-user-principal',
+            value: `<d:current-user-principal><d:href>${this.escapeXml(principalHref)}</d:href></d:current-user-principal>`,
+          },
+        ],
+        request,
+      ),
     ];
     if (depth === '1' || depth === 'infinity') {
       responses.push(
@@ -255,6 +318,7 @@ export class CalDavService {
           collection.description,
           syncToken,
           principalHref,
+          request,
         ),
       );
     }
@@ -266,9 +330,14 @@ export class CalDavService {
   createCalendarResourcePropfindResponse(
     resourceHref: string,
     resource: CalDavCalendarResource,
+    request: CalDavPropfindRequest = { mode: 'allprop', properties: [] },
   ): string {
     return this.createMultistatus([
-      this.createCalendarObjectResponse(resourceHref, resource),
+      this.createCalendarObjectPropfindResponse(
+        resourceHref,
+        resource,
+        request,
+      ),
     ]);
   }
 
@@ -321,39 +390,148 @@ export class CalDavService {
       <d:error xmlns:d="DAV:"><d:valid-sync-token/></d:error>`;
   }
 
+  /** Возвращает стабильное время изменения из DTSTAMP или даты начала события. */
+  getResourceLastModified(resource: CalDavCalendarResource): Date {
+    const dtstamp = resource.content.match(/^DTSTAMP:(\d{8}T\d{6}Z)$/m)?.[1];
+
+    return (dtstamp && this.parseCalDavDateTime(dtstamp)) || resource.startsAt;
+  }
+
   private createCollectionResponse(
     collectionHref: string,
     calendarName: string,
     calendarDescription: string,
     syncToken: string,
     principalHref?: string,
+    request: CalDavPropfindRequest = { mode: 'allprop', properties: [] },
   ): string {
-    const currentUserPrincipal = principalHref
-      ? `<d:current-user-principal><d:href>${this.escapeXml(principalHref)}</d:href></d:current-user-principal>`
+    const properties: CalDavXmlProperty[] = [
+      {
+        name: 'resourcetype',
+        value: '<d:resourcetype><d:collection/><c:calendar/></d:resourcetype>',
+      },
+      {
+        name: 'displayname',
+        value: `<d:displayname>${this.escapeXml(`YSTUty [${calendarName}]`)}</d:displayname>`,
+      },
+      {
+        name: 'calendar-description',
+        value: `<c:calendar-description xml:lang="ru">${this.escapeXml(calendarDescription)}</c:calendar-description>`,
+      },
+      {
+        name: 'supported-calendar-component-set',
+        value:
+          '<c:supported-calendar-component-set><c:comp name="VEVENT"/></c:supported-calendar-component-set>',
+      },
+      {
+        name: 'supported-calendar-data',
+        value:
+          '<c:supported-calendar-data><c:calendar-data content-type="text/calendar" version="2.0"/></c:supported-calendar-data>',
+      },
+      {
+        name: 'sync-token',
+        value: `<d:sync-token>${this.escapeXml(syncToken)}</d:sync-token>`,
+      },
+      {
+        name: 'getctag',
+        value: `<cs:getctag>${this.escapeXml(syncToken)}</cs:getctag>`,
+      },
+      {
+        name: 'supported-report-set',
+        value: `<d:supported-report-set>
+          <d:supported-report><d:report><c:calendar-query/></d:report></d:supported-report>
+          <d:supported-report><d:report><c:calendar-multiget/></d:report></d:supported-report>
+          <d:supported-report><d:report><d:sync-collection/></d:report></d:supported-report>
+        </d:supported-report-set>`,
+      },
+    ];
+    if (principalHref) {
+      properties.push({
+        name: 'current-user-principal',
+        value: `<d:current-user-principal><d:href>${this.escapeXml(principalHref)}</d:href></d:current-user-principal>`,
+      });
+    }
+
+    return this.createPropfindResponse(collectionHref, properties, request);
+  }
+
+  /** Формирует `propstat` согласно запрошенному набору WebDAV-свойств. */
+  private createPropfindResponse(
+    href: string,
+    properties: CalDavXmlProperty[],
+    request: CalDavPropfindRequest,
+  ): string {
+    const propertiesByName = new Map(
+      properties.map((property) => [property.name, property]),
+    );
+    const requestedProperties =
+      request.mode === 'allprop' || request.mode === 'propname'
+        ? properties
+        : request.properties
+            .map((property) => propertiesByName.get(property))
+            .filter((property): property is CalDavXmlProperty => !!property);
+    const unsupportedProperties =
+      request.mode === 'prop'
+        ? request.properties.filter(
+            (property) => !propertiesByName.has(property),
+          )
+        : [];
+    const propertyValues = requestedProperties.map((property) =>
+      request.mode === 'propname'
+        ? this.createEmptyProperty(property.name)
+        : property.value,
+    );
+    const successPropstat = propertyValues.length
+      ? `<d:propstat><d:prop>${propertyValues.join('')}</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat>`
+      : '';
+    const notFoundPropstat = unsupportedProperties.length
+      ? `<d:propstat><d:prop>${unsupportedProperties.map((property) => this.createEmptyProperty(property)).join('')}</d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat>`
       : '';
 
-    return `
-      <d:response>
-        <d:href>${this.escapeXml(collectionHref)}</d:href>
-        <d:propstat>
-          <d:prop>
-            <d:resourcetype><d:collection/><c:calendar/></d:resourcetype>
-            <d:displayname>${this.escapeXml(`YSTUty [${calendarName}]`)}</d:displayname>
-            <c:calendar-description xml:lang="ru">${this.escapeXml(calendarDescription)}</c:calendar-description>
-            <c:supported-calendar-component-set><c:comp name="VEVENT"/></c:supported-calendar-component-set>
-            <c:supported-calendar-data><c:calendar-data content-type="text/calendar" version="2.0"/></c:supported-calendar-data>
-            ${currentUserPrincipal}
-            <d:sync-token>${this.escapeXml(syncToken)}</d:sync-token>
-            <d:supported-report-set>
-              <d:supported-report><d:report><c:calendar-query/></d:report></d:supported-report>
-              <d:supported-report><d:report><c:calendar-multiget/></d:report></d:supported-report>
-              <d:supported-report><d:report><d:sync-collection/></d:report></d:supported-report>
-            </d:supported-report-set>
-          </d:prop>
-          <d:status>HTTP/1.1 200 OK</d:status>
-        </d:propstat>
-      </d:response>
-    `;
+    return `<d:response><d:href>${this.escapeXml(href)}</d:href>${successPropstat}${notFoundPropstat}</d:response>`;
+  }
+
+  private createEmptyProperty(name: string): string {
+    const safeName = name.match(/^[a-zA-Z][a-zA-Z0-9-]*$/) ? name : 'unknown';
+
+    return `<d:${safeName}/>`;
+  }
+
+  private createCalendarObjectPropfindResponse(
+    href: string,
+    resource: CalDavCalendarResource,
+    request: CalDavPropfindRequest,
+  ): string {
+    return this.createPropfindResponse(
+      href,
+      [
+        { name: 'resourcetype', value: '<d:resourcetype/>' },
+        {
+          name: 'displayname',
+          value: `<d:displayname>${this.escapeXml(resource.name)}</d:displayname>`,
+        },
+        {
+          name: 'getcontenttype',
+          value:
+            '<d:getcontenttype>text/calendar; charset=utf-8</d:getcontenttype>',
+        },
+        {
+          name: 'getcontentlength',
+          value: `<d:getcontentlength>${Buffer.byteLength(
+            resource.content,
+            'utf8',
+          )}</d:getcontentlength>`,
+        },
+        { name: 'getetag', value: `<d:getetag>${resource.etag}</d:getetag>` },
+        {
+          name: 'getlastmodified',
+          value: `<d:getlastmodified>${this.getResourceLastModified(
+            resource,
+          ).toUTCString()}</d:getlastmodified>`,
+        },
+      ],
+      request,
+    );
   }
 
   private createCalendarObjectResponse(
@@ -509,7 +687,8 @@ export class CalDavService {
     return `<?xml version="1.0" encoding="UTF-8"?>
       <d:multistatus
         xmlns:d="DAV:"
-        xmlns:c="urn:ietf:params:xml:ns:caldav">
+        xmlns:c="urn:ietf:params:xml:ns:caldav"
+        xmlns:cs="http://calendarserver.org/ns/">
         ${responses.join('')}
         ${syncToken ? `<d:sync-token>${this.escapeXml(syncToken)}</d:sync-token>` : ''}
       </d:multistatus>`;

@@ -4,10 +4,8 @@ import { CalDavController } from './caldav.controller';
 import { CalDavService } from './caldav.service';
 import { CalDavCalendarCollection } from './caldav.types';
 
-const publicCalendarPath = new URL(xEnv.CUSTOM_CALENDAR_URL).pathname.replace(
-  /\/+$/,
-  '',
-);
+const publicCalendarUrl = new URL(xEnv.CUSTOM_CALENDAR_URL);
+const publicCalDavUrl = `${publicCalendarUrl.origin}${publicCalendarUrl.pathname.replace(/\/+$/, '')}/caldav`;
 
 describe('CalDavController', () => {
   const collection: CalDavCalendarCollection = {
@@ -100,7 +98,7 @@ describe('CalDavController', () => {
     );
     expect(response.send).toHaveBeenCalledWith(
       expect.stringContaining(
-        `${publicCalendarPath}/caldav/group/${encodeURIComponent('ЦИС-16')}/lesson-1.ics`,
+        `${publicCalDavUrl}/group/${encodeURIComponent('ЦИС-16')}/lesson-1.ics`,
       ),
     );
     expect(metricsService.startCalendarRequestTimer).toHaveBeenCalledWith({
@@ -140,9 +138,39 @@ describe('CalDavController', () => {
       expect.stringContaining('<d:sync-token>'),
     );
     expect(response.send).toHaveBeenCalledWith(
-      expect.stringContaining(
-        `${publicCalendarPath}/caldav/group-id/4627/lesson-1.ics`,
-      ),
+      expect.stringContaining(`${publicCalDavUrl}/group-id/4627/lesson-1.ics`),
+    );
+  });
+
+  it('uses the trusted public HTTPS origin in CalDAV hrefs', async () => {
+    const { controller } = createController();
+    const response = createResponse();
+    const request = {
+      header: jest.fn((name: string) => {
+        if (name === 'Depth') {
+          return '0';
+        }
+        if (name === 'Host') {
+          return 's-ical.ystuty.ru';
+        }
+
+        return undefined;
+      }),
+      method: 'PROPFIND',
+      protocol: 'https',
+      secure: true,
+    };
+
+    await controller.handleGroupIdRequest(
+      4627,
+      undefined,
+      request as any,
+      response as any,
+      undefined,
+    );
+
+    expect(response.send).toHaveBeenCalledWith(
+      expect.stringContaining('https://s-ical.ystuty.ru/caldav/group-id/4627/'),
     );
   });
 
@@ -168,18 +196,14 @@ describe('CalDavController', () => {
 
     expect(principalResponse.status).toHaveBeenCalledWith(207);
     expect(principalResponse.send).toHaveBeenCalledWith(
-      expect.stringContaining(
-        `${publicCalendarPath}/caldav/principals/group-id/4627/`,
-      ),
+      expect.stringContaining(`${publicCalDavUrl}/principals/group-id/4627/`),
     );
     expect(principalResponse.send).toHaveBeenCalledWith(
-      expect.stringContaining(
-        `${publicCalendarPath}/caldav/homes/group-id/4627/`,
-      ),
+      expect.stringContaining(`${publicCalDavUrl}/homes/group-id/4627/`),
     );
     expect(homeResponse.status).toHaveBeenCalledWith(207);
     expect(homeResponse.send).toHaveBeenCalledWith(
-      expect.stringContaining(`${publicCalendarPath}/caldav/group-id/4627/`),
+      expect.stringContaining(`${publicCalDavUrl}/group-id/4627/`),
     );
     expect(homeResponse.send).toHaveBeenCalledWith(
       expect.stringContaining('<d:current-user-principal>'),
@@ -281,9 +305,7 @@ describe('CalDavController', () => {
       expect.not.stringContaining('<d:collection/>'),
     );
     expect(response.send).toHaveBeenCalledWith(
-      expect.stringContaining(
-        `${publicCalendarPath}/caldav/group-id/4627/lesson-1.ics`,
-      ),
+      expect.stringContaining(`${publicCalDavUrl}/group-id/4627/lesson-1.ics`),
     );
   });
 

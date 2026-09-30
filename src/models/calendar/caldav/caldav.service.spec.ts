@@ -45,6 +45,28 @@ describe('CalDavService', () => {
     expect(response).toContain('first.ics');
     expect(response).toContain('second.ics');
     expect(response).toContain('<d:getetag>"first"</d:getetag>');
+    expect(response).toContain('<cs:getctag>');
+    expect(response).toContain('<d:getlastmodified>');
+  });
+
+  it('honours explicitly requested PROPFIND properties', () => {
+    const service = new CalDavService();
+    const request = service.parsePropfindRequest(`
+      <d:propfind xmlns:d="DAV:">
+        <d:prop><d:getetag/><d:getlastmodified/><d:unknown-property/></d:prop>
+      </d:propfind>
+    `);
+    const response = service.createCalendarResourcePropfindResponse(
+      '/v1/calendar/caldav/group-id/4627/first.ics',
+      collection.resources[0],
+      request!,
+    );
+
+    expect(response).toContain('<d:getetag>"first"</d:getetag>');
+    expect(response).toContain('<d:getlastmodified>');
+    expect(response).not.toContain('<d:getcontenttype>');
+    expect(response).toContain('<d:unknown-property/>');
+    expect(response).toContain('HTTP/1.1 404 Not Found');
   });
 
   it('provides a principal and calendar home for account-style discovery', () => {
