@@ -346,6 +346,14 @@ export class CalDavService {
         calendarHomeHref,
         [
           {
+            name: this.caldavName('calendar-home-set'),
+            value: `<c:calendar-home-set><d:href>${this.escapeXml(calendarHomeHref)}</d:href></c:calendar-home-set>`,
+          },
+          {
+            name: this.calendarServerName('getctag'),
+            value: `<cs:getctag>${this.escapeXml(syncToken)}</cs:getctag>`,
+          },
+          {
             name: this.davName('resourcetype'),
             value: '<d:resourcetype><d:collection/></d:resourcetype>',
           },
@@ -356,6 +364,14 @@ export class CalDavService {
           {
             name: this.davName('current-user-principal'),
             value: `<d:current-user-principal><d:href>${this.escapeXml(principalHref)}</d:href></d:current-user-principal>`,
+          },
+          {
+            name: this.davName('owner'),
+            value: `<d:owner><d:href>${this.escapeXml(principalHref)}</d:href></d:owner>`,
+          },
+          {
+            name: this.davName('principal-URL'),
+            value: `<d:principal-URL><d:href>${this.escapeXml(principalHref)}</d:href></d:principal-URL>`,
           },
         ],
         request,
@@ -501,6 +517,24 @@ export class CalDavService {
         name: this.davName('current-user-principal'),
         value: `<d:current-user-principal><d:href>${this.escapeXml(principalHref)}</d:href></d:current-user-principal>`,
       });
+      properties.push(
+        {
+          name: this.davName('owner'),
+          value: `<d:owner><d:href>${this.escapeXml(principalHref)}</d:href></d:owner>`,
+        },
+        {
+          name: this.davName('principal-URL'),
+          value: `<d:principal-URL><d:href>${this.escapeXml(principalHref)}</d:href></d:principal-URL>`,
+        },
+      );
+      const calendarHomeHref =
+        this.getCalendarHomeHrefFromCollectionHref(collectionHref);
+      if (calendarHomeHref) {
+        properties.push({
+          name: this.caldavName('calendar-home-set'),
+          value: `<c:calendar-home-set><d:href>${this.escapeXml(calendarHomeHref)}</d:href></c:calendar-home-set>`,
+        });
+      }
     }
 
     return this.createPropfindResponse(collectionHref, properties, request);
@@ -697,6 +731,15 @@ export class CalDavService {
     } catch {
       return '';
     }
+  }
+
+  /** Получает calendar home из canonical URL дочерней calendar collection. */
+  private getCalendarHomeHrefFromCollectionHref(
+    collectionHref: string,
+  ): string | null {
+    return collectionHref.endsWith('/calendar/')
+      ? collectionHref.slice(0, -'calendar/'.length)
+      : null;
   }
 
   private hasElement(value: unknown, name: string): boolean {

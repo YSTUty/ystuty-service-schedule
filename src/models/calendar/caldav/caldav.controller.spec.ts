@@ -1,3 +1,5 @@
+import { Logger } from '@nestjs/common';
+
 import * as xEnv from '@my-environment';
 
 import { CalDavController } from './caldav.controller';
@@ -174,6 +176,52 @@ describe('CalDavController', () => {
     expect(homeResponse.send).toHaveBeenCalledWith(
       expect.stringContaining('<d:current-user-principal>'),
     );
+  });
+
+  it('logs CalDAV diagnostics without exposing credentials or cookies', async () => {
+    const { controller } = createController();
+    const response = createResponse();
+    const loggerSpy = jest
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(() => undefined);
+    const request = {
+      headers: {
+        accept: 'application/xml',
+        authorization: 'Basic top-secret-credentials',
+        cookie: 'session=top-secret-cookie',
+        host: 's-ical.ystuty.ru',
+        'x-bitrix-feature': 'unexpected-value',
+      },
+      header: jest.fn((name: string) => {
+        const headers: Record<string, string> = {
+          accept: 'application/xml',
+          host: 's-ical.ystuty.ru',
+        };
+
+        return headers[name.toLowerCase()];
+      }),
+      method: 'PROPFIND',
+      originalUrl: '/v1/calendar/caldav/group-id/4627',
+    };
+
+    try {
+      await controller.handleGroupIdCalendarHomeRequest(
+        4627,
+        request as any,
+        response as any,
+        undefined,
+      );
+
+      const message = loggerSpy.mock.calls.at(-1)?.[0] as string;
+      expect(message).toContain('response-bytes=');
+      expect(message).toContain('names=accept,host,x-bitrix-feature');
+      expect(message).toContain('accept="application/xml"');
+      expect(message).not.toContain('top-secret-credentials');
+      expect(message).not.toContain('top-secret-cookie');
+      expect(message).not.toContain('unexpected-value');
+    } finally {
+      loggerSpy.mockRestore();
+    }
   });
 
   it('returns only changed resources through RFC 6578 sync-collection', async () => {

@@ -52,6 +52,7 @@ interface CalDavRequestLogDetails {
   deletedResources?: number;
   includeCalendarData?: boolean;
   calendarCollections?: number;
+  responseBytes?: number;
 }
 
 /**
@@ -276,7 +277,11 @@ export class CalDavController {
       }
 
       if ((method === 'GET' || method === 'HEAD') && calendarResource) {
-        this.sendCalendar(res, calendarResource, method === 'HEAD');
+        const responseBytes = this.sendCalendar(
+          res,
+          calendarResource,
+          method === 'HEAD',
+        );
         stopTimer('success');
         this.logRequest(
           req,
@@ -285,6 +290,7 @@ export class CalDavController {
           method,
           HttpStatus.OK,
           calendarResource.name,
+          { responseBytes },
         );
         return;
       }
@@ -313,6 +319,7 @@ export class CalDavController {
               this.getPrincipalHref(target),
               propfind,
             );
+        const responseBytes = Buffer.byteLength(propfindResponse, 'utf8');
         res
           .status(207)
           .type('application/xml; charset=utf-8')
@@ -336,6 +343,7 @@ export class CalDavController {
               : collection.resources.length,
             requestedProperties:
               this.calDavService.getPropfindPropertiesForLog(propfind),
+            responseBytes,
           },
         );
         return;
@@ -358,11 +366,13 @@ export class CalDavController {
             report.syncToken,
           );
           if (!syncResult.isValid) {
+            const responseBody =
+              this.calDavService.createInvalidSyncTokenResponse();
             res
               .status(HttpStatus.FORBIDDEN)
               .type('application/xml; charset=utf-8')
               .set('DAV', '1, calendar-access, sync-collection')
-              .send(this.calDavService.createInvalidSyncTokenResponse());
+              .send(responseBody);
             stopTimer('invalid_sync_token');
             this.logRequest(
               req,
@@ -377,21 +387,21 @@ export class CalDavController {
                 eventResources: 0,
                 deletedResources: 0,
                 includeCalendarData: report.includeCalendarData,
+                responseBytes: Buffer.byteLength(responseBody, 'utf8'),
               },
             );
             return;
           }
+          const responseBody = this.calDavService.createSyncCollectionResponse(
+            collectionHref,
+            syncResult,
+            report.includeCalendarData,
+          );
           res
             .status(HttpStatus.MULTI_STATUS)
             .type('application/xml; charset=utf-8')
             .set('DAV', '1, calendar-access, sync-collection')
-            .send(
-              this.calDavService.createSyncCollectionResponse(
-                collectionHref,
-                syncResult,
-                report.includeCalendarData,
-              ),
-            );
+            .send(responseBody);
           stopTimer('success');
           this.logRequest(
             req,
@@ -406,6 +416,7 @@ export class CalDavController {
               eventResources: syncResult.resources.length,
               deletedResources: syncResult.deletedResourceNames.length,
               includeCalendarData: report.includeCalendarData,
+              responseBytes: Buffer.byteLength(responseBody, 'utf8'),
             },
           );
           return;
@@ -415,17 +426,16 @@ export class CalDavController {
           report,
           this.getRequestDepth(req),
         );
+        const responseBody = this.calDavService.createReportResponse(
+          collectionHref,
+          reportResult,
+          report.includeCalendarData,
+        );
         res
           .status(207)
           .type('application/xml; charset=utf-8')
           .set('DAV', '1, calendar-access')
-          .send(
-            this.calDavService.createReportResponse(
-              collectionHref,
-              reportResult,
-              report.includeCalendarData,
-            ),
-          );
+          .send(responseBody);
         stopTimer('success');
         this.logRequest(
           req,
@@ -440,6 +450,7 @@ export class CalDavController {
             eventResources: reportResult.resources.length,
             missingResources: reportResult.missingHrefs.length,
             includeCalendarData: report.includeCalendarData,
+            responseBytes: Buffer.byteLength(responseBody, 'utf8'),
           },
         );
         return;
@@ -534,17 +545,16 @@ export class CalDavController {
       if (!propfind) {
         throw new BadRequestException('Invalid CalDAV PROPFIND');
       }
+      const responseBody = this.calDavService.createPrincipalPropfindResponse(
+        this.getPrincipalHref(target),
+        this.getCalendarHomeHref(target),
+        propfind,
+      );
       res
         .status(HttpStatus.MULTI_STATUS)
         .type('application/xml; charset=utf-8')
         .set('DAV', '1, calendar-access')
-        .send(
-          this.calDavService.createPrincipalPropfindResponse(
-            this.getPrincipalHref(target),
-            this.getCalendarHomeHref(target),
-            propfind,
-          ),
-        );
+        .send(responseBody);
       this.logRequest(
         req,
         target,
@@ -556,6 +566,7 @@ export class CalDavController {
           depth: this.getRequestDepth(req),
           requestedProperties:
             this.calDavService.getPropfindPropertiesForLog(propfind),
+          responseBytes: Buffer.byteLength(responseBody, 'utf8'),
         },
       );
       stopTimer('success');
@@ -643,21 +654,21 @@ export class CalDavController {
       if (!propfind) {
         throw new BadRequestException('Invalid CalDAV PROPFIND');
       }
+      const responseBody =
+        this.calDavService.createCalendarHomePropfindResponse(
+          this.getCalendarHomeHref(target),
+          this.getCollectionHref(target),
+          collection,
+          this.getRequestDepth(req),
+          syncToken,
+          this.getPrincipalHref(target),
+          propfind,
+        );
       res
         .status(HttpStatus.MULTI_STATUS)
         .type('application/xml; charset=utf-8')
         .set('DAV', '1, calendar-access')
-        .send(
-          this.calDavService.createCalendarHomePropfindResponse(
-            this.getCalendarHomeHref(target),
-            this.getCollectionHref(target),
-            collection,
-            this.getRequestDepth(req),
-            syncToken,
-            this.getPrincipalHref(target),
-            propfind,
-          ),
-        );
+        .send(responseBody);
       this.logRequest(
         req,
         target,
@@ -670,6 +681,7 @@ export class CalDavController {
           calendarCollections: this.hasDepthOneOrMore(req) ? 1 : 0,
           requestedProperties:
             this.calDavService.getPropfindPropertiesForLog(propfind),
+          responseBytes: Buffer.byteLength(responseBody, 'utf8'),
         },
       );
       stopTimer('success');
@@ -697,17 +709,21 @@ export class CalDavController {
     res: Response,
     calendar: CalDavCalendarResource,
     isHeadRequest: boolean,
-  ): void {
+  ): number {
+    const contentBytes = Buffer.byteLength(calendar.content, 'utf8');
     res
       .status(HttpStatus.OK)
       .set({
         'Content-Type': 'text/calendar; charset=utf-8',
+        'Content-Length': contentBytes,
         ETag: calendar.etag,
         'Last-Modified': this.calDavService
           .getResourceLastModified(calendar)
           .toUTCString(),
       })
       .send(isHeadRequest ? undefined : calendar.content);
+
+    return isHeadRequest ? 0 : contentBytes;
   }
 
   /** Абсолютные href строятся из единственного публичного `CUSTOM_CALENDAR_URL`. */
@@ -776,6 +792,13 @@ export class CalDavController {
     if (details.calendarCollections !== undefined) {
       detailParts.push(`calendar-collections=${details.calendarCollections}`);
     }
+    if (details.responseBytes !== undefined) {
+      detailParts.push(`response-bytes=${details.responseBytes}`);
+    }
+    const requestHeaders = this.getSafeRequestHeaders(req);
+    if (requestHeaders) {
+      detailParts.push(`headers=${requestHeaders}`);
+    }
     const userAgent = this.getSafeUserAgent(req.header('User-Agent'));
     if (userAgent) {
       detailParts.push(`user-agent=${JSON.stringify(userAgent)}`);
@@ -812,13 +835,58 @@ export class CalDavController {
       : 0;
   }
 
+  /**
+   * Записывает только безопасную сводку HTTP-заголовков. Значения credentials,
+   * cookies и любых header с ключами или токенами не попадают в журнал.
+   */
+  private getSafeRequestHeaders(req: Request): string | null {
+    const hiddenHeader =
+      /(?:authorization|cookie|password|secret|token|api[-_]?key)/i;
+    const valueHeaderNames = new Set([
+      'accept',
+      'content-length',
+      'content-type',
+      'dav',
+      'host',
+      'origin',
+      'prefer',
+      'translate',
+    ]);
+    const headerNames = Object.keys(req.headers ?? {})
+      .map((name) => name.toLowerCase())
+      .filter((name) => !hiddenHeader.test(name))
+      .sort();
+    if (headerNames.length === 0) {
+      return null;
+    }
+
+    const values = headerNames
+      .filter((name) => valueHeaderNames.has(name))
+      .map((name) => {
+        const value = req.header(name);
+
+        return value
+          ? `${name}=${JSON.stringify(this.getSafeHeaderValue(value))}`
+          : null;
+      })
+      .filter((value): value is string => value !== null);
+    const headerNamesSummary = headerNames.slice(0, 20).join(',');
+    const suffix = headerNames.length > 20 ? ',…' : '';
+
+    return `names=${headerNamesSummary}${suffix}${values.length ? `; ${values.join(',')}` : ''}`;
+  }
+
+  private getSafeHeaderValue(value: string): string {
+    return value.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 160);
+  }
+
   /** Предотвращает подмену строк журналирования из заголовка User-Agent. */
   private getSafeUserAgent(userAgent: string | undefined): string | null {
     if (!userAgent) {
       return null;
     }
 
-    return userAgent.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 160);
+    return this.getSafeHeaderValue(userAgent);
   }
 
   private createGroupTarget(groupName: string): CalDavTarget {

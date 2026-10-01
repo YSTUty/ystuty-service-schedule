@@ -132,6 +132,50 @@ describe('CalDavService', () => {
     expect(homeResponse).toContain('<d:current-user-principal>');
   });
 
+  it('provides calendar-home-set directly on the URL entered by Bitrix24', () => {
+    const service = new CalDavService();
+    const request = service.parsePropfindRequest(`
+      <A:propfind
+        xmlns:A="DAV:"
+        xmlns:A0="urn:ietf:params:xml:ns:caldav"
+        xmlns:A1="http://calendarserver.org/ns/">
+        <A:prop>
+          <A0:calendar-home-set/>
+          <A1:getctag/>
+          <A:displayname/>
+          <A:resourcetype/>
+          <A:owner/>
+          <A:current-user-principal/>
+          <A:principal-URL/>
+        </A:prop>
+      </A:propfind>
+    `)!;
+    const response = service.createCalendarHomePropfindResponse(
+      '/caldav/group-id/4627/',
+      '/caldav/group-id/4627/calendar/',
+      collection,
+      '1',
+      'urn:ystuty:caldav:sync:collection:state',
+      '/caldav/principals/group-id/4627/',
+      request,
+    );
+
+    expect(response).toContain(
+      '<c:calendar-home-set><d:href>/caldav/group-id/4627/</d:href></c:calendar-home-set>',
+    );
+    expect(response).toContain(
+      '<cs:getctag>urn:ystuty:caldav:sync:collection:state</cs:getctag>',
+    );
+    expect(response).toContain(
+      '<d:principal-URL><d:href>/caldav/principals/group-id/4627/</d:href></d:principal-URL>',
+    );
+    expect(response).toContain(
+      '<d:owner><d:href>/caldav/principals/group-id/4627/</d:href></d:owner>',
+    );
+    expect(response).not.toContain('<c:calendar-home-set/>');
+    expect(response).not.toContain('<d:principal-URL/>');
+  });
+
   it('filters calendar-query resources by time range and only includes requested data', () => {
     const service = new CalDavService();
     const report = service.parseReportRequest(`
