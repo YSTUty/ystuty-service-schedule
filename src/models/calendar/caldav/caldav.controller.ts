@@ -260,7 +260,7 @@ export class CalDavController {
         stopTimer('not_found');
         throw new NotFoundException(target.notFoundMessage);
       }
-      const collectionHref = this.getCollectionHref(req, target);
+      const collectionHref = this.getCollectionHref(target);
       const calendarResource = resource
         ? collection.resources.find((candidate) => candidate.name === resource)
         : undefined;
@@ -305,7 +305,7 @@ export class CalDavController {
                   collection,
                 )
               ).token,
-              this.getPrincipalHref(req, target),
+              this.getPrincipalHref(target),
               propfind,
             );
         res
@@ -521,8 +521,8 @@ export class CalDavController {
         .set('DAV', '1, calendar-access')
         .send(
           this.calDavService.createPrincipalPropfindResponse(
-            this.getPrincipalHref(req, target),
-            this.getCalendarHomeHref(req, target),
+            this.getPrincipalHref(target),
+            this.getCalendarHomeHref(target),
             propfind,
           ),
         );
@@ -611,12 +611,12 @@ export class CalDavController {
         .set('DAV', '1, calendar-access')
         .send(
           this.calDavService.createCalendarHomePropfindResponse(
-            this.getCalendarHomeHref(req, target),
-            this.getCollectionHref(req, target),
+            this.getCalendarHomeHref(target),
+            this.getCollectionHref(target),
             collection,
             this.getRequestDepth(req),
             syncToken,
-            this.getPrincipalHref(req, target),
+            this.getPrincipalHref(target),
             propfind,
           ),
         );
@@ -665,53 +665,26 @@ export class CalDavController {
       .send(isHeadRequest ? undefined : calendar.content);
   }
 
-  /**
-   * Использует public origin текущего HTTPS-запроса, если Express доверяет
-   * reverse proxy. Абсолютные href лучше совместимы со старыми DAV-клиентами.
-   */
-  private getCollectionHref(
-    req: Request,
-    target: { publicCollectionPath: string },
-  ): string {
-    return `${this.getCalDavBaseUrl(req)}/${target.publicCollectionPath}/`;
+  /** Абсолютные href строятся из единственного публичного `CUSTOM_CALENDAR_URL`. */
+  private getCollectionHref(target: { publicCollectionPath: string }): string {
+    return `${this.getCalDavBaseUrl()}/${target.publicCollectionPath}/`;
   }
 
-  private getPrincipalHref(
-    req: Request,
-    target: { publicCollectionPath: string },
-  ): string {
-    return `${this.getCalDavBaseUrl(req)}/principals/${target.publicCollectionPath}/`;
+  private getPrincipalHref(target: { publicCollectionPath: string }): string {
+    return `${this.getCalDavBaseUrl()}/principals/${target.publicCollectionPath}/`;
   }
 
-  private getCalendarHomeHref(
-    req: Request,
-    target: { publicCollectionPath: string },
-  ): string {
-    return `${this.getCalDavBaseUrl(req)}/homes/${target.publicCollectionPath}/`;
+  private getCalendarHomeHref(target: {
+    publicCollectionPath: string;
+  }): string {
+    return `${this.getCalDavBaseUrl()}/homes/${target.publicCollectionPath}/`;
   }
 
-  private getCalDavBaseUrl(req: Request): string {
+  private getCalDavBaseUrl(): string {
     const configuredUrl = new URL(xEnv.CUSTOM_CALENDAR_URL);
     const calendarPath = configuredUrl.pathname.replace(/\/+$/, '');
-    const requestHost = req.header('Host');
-    const origin =
-      req.secure && requestHost
-        ? (this.getRequestOrigin(req.protocol, requestHost) ??
-          configuredUrl.origin)
-        : configuredUrl.origin;
 
-    return `${origin}${calendarPath}/caldav`;
-  }
-
-  /** Возвращает origin только для валидных данных уже доверенного proxy. */
-  private getRequestOrigin(protocol: string, host: string): string | null {
-    try {
-      const url = new URL(`${protocol}://${host}`);
-
-      return url.origin;
-    } catch {
-      return null;
-    }
+    return `${configuredUrl.origin}${calendarPath}/caldav`;
   }
 
   private getSyncCollectionKey(target: { syncKey: string }): string {

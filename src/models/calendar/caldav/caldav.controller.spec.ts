@@ -142,38 +142,6 @@ describe('CalDavController', () => {
     );
   });
 
-  it('uses the trusted public HTTPS origin in CalDAV hrefs', async () => {
-    const { controller } = createController();
-    const response = createResponse();
-    const request = {
-      header: jest.fn((name: string) => {
-        if (name === 'Depth') {
-          return '0';
-        }
-        if (name === 'Host') {
-          return 's-ical.ystuty.ru';
-        }
-
-        return undefined;
-      }),
-      method: 'PROPFIND',
-      protocol: 'https',
-      secure: true,
-    };
-
-    await controller.handleGroupIdRequest(
-      4627,
-      undefined,
-      request as any,
-      response as any,
-      undefined,
-    );
-
-    expect(response.send).toHaveBeenCalledWith(
-      expect.stringContaining('https://s-ical.ystuty.ru/caldav/group-id/4627/'),
-    );
-  });
-
   it('links the calendar collection to a virtual principal and calendar home', async () => {
     const { controller } = createController();
     const principalResponse = createResponse();

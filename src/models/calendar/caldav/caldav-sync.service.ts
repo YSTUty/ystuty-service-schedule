@@ -11,7 +11,14 @@ import {
 } from './caldav.types';
 
 const SNAPSHOT_TTL_SECONDS = 60 * 60 * 24 * 30;
+const MEMORY_SNAPSHOT_TTL_MS = 5 * 60 * 1e3;
 const TOKEN_PREFIX = 'urn:ystuty:caldav:sync:';
+
+interface MemorySnapshot {
+  snapshot: CalDavSyncSnapshot;
+  expiresAt: number;
+  isPersisted: boolean;
+}
 
 /**
  * Хранит недавние состояния collection для `sync-collection` из RFC 6578.
@@ -21,7 +28,7 @@ const TOKEN_PREFIX = 'urn:ystuty:caldav:sync:';
 @Injectable()
 export class CalDavSyncService {
   private readonly logger = new Logger(CalDavSyncService.name);
-  private readonly memorySnapshots = new Map<string, CalDavSyncSnapshot>();
+  private readonly memorySnapshots = new Map<string, MemorySnapshot>();
 
   constructor(private readonly redisService: RedisService) {}
 
@@ -115,7 +122,11 @@ export class CalDavSyncService {
     snapshot: CalDavSyncSnapshot,
   ): Promise<void> {
     const cacheKey = this.getSnapshotCacheKey(collectionKey, snapshot.token);
-    this.memorySnapshots.set(cacheKey, snapshot);
+    const memorySnapshot = this.getMemorySnapshot(cacheKey);
+    if (memorySnapshot?.isPersisted) {
+      return;
+    }
+    this.setMemorySnapshot(cacheKey, snapshot, false);
 
     try {
       await this.redisService.redis.set(
@@ -124,6 +135,7 @@ export class CalDavSyncService {
         'EX',
         SNAPSHOT_TTL_SECONDS,
       );
+      this.setMemorySnapshot(cacheKey, snapshot, true);
     } catch (error) {
       const redisError =
         error instanceof Error ? error : new Error(String(error));
@@ -138,9 +150,9 @@ export class CalDavSyncService {
     token: string,
   ): Promise<CalDavSyncSnapshot | null> {
     const cacheKey = this.getSnapshotCacheKey(collectionKey, token);
-    const memorySnapshot = this.memorySnapshots.get(cacheKey);
+    const memorySnapshot = this.getMemorySnapshot(cacheKey);
     if (memorySnapshot) {
-      return memorySnapshot;
+      return memorySnapshot.snapshot;
     }
 
     try {
@@ -153,7 +165,7 @@ export class CalDavSyncService {
       if (!this.isSnapshot(parsed)) {
         return null;
       }
-      this.memorySnapshots.set(cacheKey, parsed);
+      this.setMemorySnapshot(cacheKey, parsed, true);
 
       return parsed;
     } catch (error) {
@@ -168,6 +180,38 @@ export class CalDavSyncService {
 
   private getSnapshotCacheKey(collectionKey: string, token: string): string {
     return `caldav:sync:v1:${this.createHash(collectionKey)}:${this.createHash(token)}`;
+  }
+
+  /**
+   * Короткий process-local cache сокращает одинаковые записи в Redis, но не
+   * продлевает протокольный TTL снапшота и не растёт бесконечно.
+   */
+  private getMemorySnapshot(cacheKey: string): MemorySnapshot | null {
+    this.removeExpiredMemorySnapshots();
+
+    return this.memorySnapshots.get(cacheKey) ?? null;
+  }
+
+  private setMemorySnapshot(
+    cacheKey: string,
+    snapshot: CalDavSyncSnapshot,
+    isPersisted: boolean,
+  ): void {
+    this.removeExpiredMemorySnapshots();
+    this.memorySnapshots.set(cacheKey, {
+      snapshot,
+      isPersisted,
+      expiresAt: Date.now() + MEMORY_SNAPSHOT_TTL_MS,
+    });
+  }
+
+  private removeExpiredMemorySnapshots(): void {
+    const now = Date.now();
+    for (const [cacheKey, snapshot] of this.memorySnapshots) {
+      if (snapshot.expiresAt <= now) {
+        this.memorySnapshots.delete(cacheKey);
+      }
+    }
   }
 
   private createHash(value: string): string {

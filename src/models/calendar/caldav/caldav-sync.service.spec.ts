@@ -38,11 +38,14 @@ describe('CalDavSyncService', () => {
       },
     };
 
-    return new CalDavSyncService(redisService as any);
+    return {
+      redis: redisService.redis,
+      service: new CalDavSyncService(redisService as any),
+    };
   };
 
   it('returns no resources when the sync-token describes the current collection', async () => {
-    const service = createService();
+    const { service } = createService();
     const collection = createCollection([firstResource, secondResource]);
     const snapshot = await service.getCurrentSnapshot('group:4627', collection);
 
@@ -57,7 +60,7 @@ describe('CalDavSyncService', () => {
   });
 
   it('returns changed and deleted resources for a stored older sync-token', async () => {
-    const service = createService();
+    const { service } = createService();
     const before = createCollection([firstResource, secondResource]);
     const previousSnapshot = await service.getCurrentSnapshot(
       'group:4627',
@@ -82,7 +85,7 @@ describe('CalDavSyncService', () => {
   });
 
   it('invalidates a token from another collection', async () => {
-    const service = createService();
+    const { service } = createService();
     const collection = createCollection([firstResource]);
     const otherSnapshot = await service.getCurrentSnapshot(
       'teacher:42',
@@ -92,5 +95,15 @@ describe('CalDavSyncService', () => {
     await expect(
       service.getChanges('group:4627', collection, otherSnapshot.token),
     ).resolves.toEqual({ isValid: false });
+  });
+
+  it('does not rewrite an unchanged snapshot to Redis during the memory TTL', async () => {
+    const { service, redis } = createService();
+    const collection = createCollection([firstResource]);
+
+    await service.getCurrentSnapshot('group:4627', collection);
+    await service.getCurrentSnapshot('group:4627', collection);
+
+    expect(redis.set).toHaveBeenCalledTimes(1);
   });
 });

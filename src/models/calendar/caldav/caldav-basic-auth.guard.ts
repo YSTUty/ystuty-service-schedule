@@ -32,9 +32,9 @@ export class CalDavBasicAuthGuard implements CanActivate {
       return true;
     }
 
-    const credentials = this.getCredentials(req.headers.authorization);
+    const username = this.getUsername(req.headers.authorization);
 
-    if (!credentials?.username) {
+    if (!username) {
       // Не логируем заголовок Authorization: он может содержать Basic password.
       const userAgent = this.getSafeUserAgent(req.headers['user-agent']);
       const userAgentSuffix = userAgent
@@ -54,11 +54,10 @@ export class CalDavBasicAuthGuard implements CanActivate {
   }
 
   /**
-   * Возвращает пару логин/пароль из Basic Authorization или null.
+   * Возвращает имя пользователя из Basic Authorization или null.
+   * Пароль намеренно не сохраняется: сервис его не проверяет.
    */
-  private getCredentials(
-    authorization?: string,
-  ): { username: string; password: string } | null {
+  private getUsername(authorization?: string): string | null {
     if (!authorization?.startsWith('Basic ')) {
       return null;
     }
@@ -72,10 +71,7 @@ export class CalDavBasicAuthGuard implements CanActivate {
       return null;
     }
 
-    return {
-      username: decoded.slice(0, separatorPosition),
-      password: decoded.slice(separatorPosition + 1),
-    };
+    return decoded.slice(0, separatorPosition);
   }
 
   /** Предотвращает подмену строк журналирования из заголовка User-Agent. */
