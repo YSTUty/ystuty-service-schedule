@@ -82,6 +82,16 @@ describe('OpenAPI document', () => {
         options: expect.any(Object),
         'x-webdav-methods': expect.objectContaining({
           PROPFIND: expect.any(Object),
+        }),
+      }),
+    );
+    expect(
+      document.paths['/v1/calendar/caldav/group/{groupName}/calendar'],
+    ).toEqual(
+      expect.objectContaining({
+        options: expect.any(Object),
+        'x-webdav-methods': expect.objectContaining({
+          PROPFIND: expect.any(Object),
           REPORT: expect.any(Object),
         }),
       }),

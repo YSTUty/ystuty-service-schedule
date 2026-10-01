@@ -8,10 +8,29 @@ import {
   CalDavSyncResult,
 } from './caldav.types';
 
-export const CALDAV_OPTIONS_HEADERS = {
-  Allow: 'OPTIONS, PROPFIND, REPORT, GET, HEAD',
-  DAV: '1, calendar-access, sync-collection',
-  'MS-Author-Via': 'DAV',
+type CalDavEndpoint = 'calendar-home' | 'calendar' | 'resource' | 'principal';
+
+const CALDAV_OPTIONS_HEADERS: Record<CalDavEndpoint, Record<string, string>> = {
+  'calendar-home': {
+    Allow: 'OPTIONS, PROPFIND',
+    DAV: '1, calendar-access',
+    'MS-Author-Via': 'DAV',
+  },
+  calendar: {
+    Allow: 'OPTIONS, PROPFIND, REPORT',
+    DAV: '1, calendar-access, sync-collection',
+    'MS-Author-Via': 'DAV',
+  },
+  resource: {
+    Allow: 'OPTIONS, PROPFIND, GET, HEAD',
+    DAV: '1, calendar-access',
+    'MS-Author-Via': 'DAV',
+  },
+  principal: {
+    Allow: 'OPTIONS, PROPFIND',
+    DAV: '1, calendar-access',
+    'MS-Author-Via': 'DAV',
+  },
 };
 
 const DAV_NAMESPACE = 'DAV:';
@@ -73,8 +92,9 @@ export class CalDavService {
     ignoreAttributes: false,
   });
 
-  getOptionsHeaders(): Record<string, string> {
-    return CALDAV_OPTIONS_HEADERS;
+  /** Возвращает допустимые методы именно для запрошенного WebDAV-ресурса. */
+  getOptionsHeaders(endpoint: CalDavEndpoint): Record<string, string> {
+    return CALDAV_OPTIONS_HEADERS[endpoint];
   }
 
   /**

@@ -71,24 +71,32 @@ extension `x-webdav-methods` у соответствующего пути.
 расписания `raspzv.idgr`. Ссылка по `groupName` сохранена для обратной
 совместимости.
 
-CalDAV повторяет структуру iCalendar:
+CalDAV использует стандартную двухуровневую структуру calendar home → calendar
+collection:
 
 ```text
 /v1/calendar/caldav/group/:groupName
 /v1/calendar/caldav/group-id/:groupId
 /v1/calendar/caldav/teacher/:teacherId
+
+/v1/calendar/caldav/group/:groupName/calendar
+/v1/calendar/caldav/group-id/:groupId/calendar
+/v1/calendar/caldav/teacher/:teacherId/calendar
 ```
 
-Это read-only CalDAV-коллекции. Клиент получает список event resources через
+Первый уровень — calendar home: `PROPFIND Depth: 1` возвращает только одну
+read-only calendar collection, поэтому discovery не отправляет клиенту сотни
+событий сразу. Внутри `/calendar` клиент получает event resources через
 `PROPFIND Depth: 1`, затем синхронизирует их через `calendar-query` и
 `calendar-multiget`; URL отдельного `.ics` resource не нужно формировать
-вручную. Для инкрементального обновления поддержан RFC 6578
+вручную. Для инкрементального обновления внутри calendar collection поддержан RFC 6578
 `sync-collection`: после первичной sync клиент получает только изменённые и
 удалённые resources. Каждый resource содержит один `VEVENT` со стабильными UID
 и ETag.
 
 Клиент получает `DAV:current-user-principal`, затем `CALDAV:calendar-home-set`
-и уже через него — единственную read-only коллекцию расписания. CalDAV-запрос
+и уже через него — тот же calendar home с единственной read-only коллекцией
+расписания. CalDAV-запрос
 без credentials получает Basic challenge. Доступ к данным (`PROPFIND`,
 `REPORT`, `GET`, `HEAD`) требует Basic Auth с непустым логином; пароль не
 проверяется. Это формальная авторизация для совместимости с календарными

@@ -84,7 +84,7 @@ describe('CalDavController', () => {
       </c:calendar-query>
     `;
 
-    await controller.handleGroupRequest(
+    await controller.handleGroupCalendarRequest(
       'ЦИС-16',
       undefined,
       request as any,
@@ -98,7 +98,7 @@ describe('CalDavController', () => {
     );
     expect(response.send).toHaveBeenCalledWith(
       expect.stringContaining(
-        `${publicCalDavUrl}/group/${encodeURIComponent('ЦИС-16')}/lesson-1.ics`,
+        `${publicCalDavUrl}/group/${encodeURIComponent('ЦИС-16')}/calendar/lesson-1.ics`,
       ),
     );
     expect(metricsService.startCalendarRequestTimer).toHaveBeenCalledWith({
@@ -110,7 +110,7 @@ describe('CalDavController', () => {
     expect(stopTimer).toHaveBeenCalledWith('success');
   });
 
-  it('answers a Depth: 1 CalDAV discovery request with event resources', async () => {
+  it('answers a Depth: 1 CalDAV discovery request with one calendar collection', async () => {
     const { controller } = createController();
     const response = createResponse();
     const request = {
@@ -119,9 +119,8 @@ describe('CalDavController', () => {
       originalUrl: '/v1/calendar/caldav/group-id/4627',
     };
 
-    await controller.handleGroupIdRequest(
+    await controller.handleGroupIdCalendarHomeRequest(
       4627,
-      undefined,
       request as any,
       response as any,
       undefined,
@@ -129,16 +128,15 @@ describe('CalDavController', () => {
 
     expect(response.status).toHaveBeenCalledWith(207);
     expect(response.send).toHaveBeenCalledWith(
-      expect.stringContaining('<c:calendar-query/>'),
+      expect.stringContaining(
+        '<d:resourcetype><d:collection/><c:calendar/></d:resourcetype>',
+      ),
     );
     expect(response.send).toHaveBeenCalledWith(
-      expect.stringContaining('lesson-1.ics'),
+      expect.not.stringContaining('lesson-1.ics'),
     );
     expect(response.send).toHaveBeenCalledWith(
-      expect.stringContaining('<d:sync-token>'),
-    );
-    expect(response.send).toHaveBeenCalledWith(
-      expect.stringContaining(`${publicCalDavUrl}/group-id/4627/lesson-1.ics`),
+      expect.stringContaining(`${publicCalDavUrl}/group-id/4627/calendar/`),
     );
   });
 
@@ -167,11 +165,11 @@ describe('CalDavController', () => {
       expect.stringContaining(`${publicCalDavUrl}/principals/group-id/4627/`),
     );
     expect(principalResponse.send).toHaveBeenCalledWith(
-      expect.stringContaining(`${publicCalDavUrl}/homes/group-id/4627/`),
+      expect.stringContaining(`${publicCalDavUrl}/group-id/4627/`),
     );
     expect(homeResponse.status).toHaveBeenCalledWith(207);
     expect(homeResponse.send).toHaveBeenCalledWith(
-      expect.stringContaining(`${publicCalDavUrl}/group-id/4627/`),
+      expect.stringContaining(`${publicCalDavUrl}/group-id/4627/calendar/`),
     );
     expect(homeResponse.send).toHaveBeenCalledWith(
       expect.stringContaining('<d:current-user-principal>'),
@@ -184,7 +182,7 @@ describe('CalDavController', () => {
     const request = {
       header: jest.fn((name: string) => (name === 'Depth' ? '0' : undefined)),
       method: 'REPORT',
-      originalUrl: '/v1/calendar/caldav/group-id/4627',
+      originalUrl: '/v1/calendar/caldav/group-id/4627/calendar',
     };
     calDavSyncService.getChanges.mockResolvedValue({
       isValid: true,
@@ -193,7 +191,7 @@ describe('CalDavController', () => {
       deletedResourceNames: ['removed.ics'],
     });
 
-    await controller.handleGroupIdRequest(
+    await controller.handleGroupIdCalendarRequest(
       4627,
       undefined,
       request as any,
@@ -222,11 +220,11 @@ describe('CalDavController', () => {
     const request = {
       header: jest.fn((name: string) => (name === 'Depth' ? '0' : undefined)),
       method: 'REPORT',
-      originalUrl: '/v1/calendar/caldav/group-id/4627',
+      originalUrl: '/v1/calendar/caldav/group-id/4627/calendar',
     };
     calDavSyncService.getChanges.mockResolvedValue({ isValid: false });
 
-    await controller.handleGroupIdRequest(
+    await controller.handleGroupIdCalendarRequest(
       4627,
       undefined,
       request as any,
@@ -253,10 +251,10 @@ describe('CalDavController', () => {
     const request = {
       header: jest.fn(),
       method: 'PROPFIND',
-      originalUrl: '/v1/calendar/caldav/group-id/4627/lesson-1.ics',
+      originalUrl: '/v1/calendar/caldav/group-id/4627/calendar/lesson-1.ics',
     };
 
-    await controller.handleGroupIdRequest(
+    await controller.handleGroupIdCalendarRequest(
       4627,
       'lesson-1.ics',
       request as any,
@@ -273,7 +271,9 @@ describe('CalDavController', () => {
       expect.not.stringContaining('<d:collection/>'),
     );
     expect(response.send).toHaveBeenCalledWith(
-      expect.stringContaining(`${publicCalDavUrl}/group-id/4627/lesson-1.ics`),
+      expect.stringContaining(
+        `${publicCalDavUrl}/group-id/4627/calendar/lesson-1.ics`,
+      ),
     );
   });
 
@@ -284,10 +284,10 @@ describe('CalDavController', () => {
     const request = {
       header: jest.fn(),
       method: 'GET',
-      originalUrl: '/v1/calendar/caldav/group-id/4627/lesson-1.ics',
+      originalUrl: '/v1/calendar/caldav/group-id/4627/calendar/lesson-1.ics',
     };
 
-    await controller.handleGroupIdRequest(
+    await controller.handleGroupIdCalendarRequest(
       4627,
       'lesson-1.ics',
       request as any,
@@ -315,10 +315,10 @@ describe('CalDavController', () => {
       header: jest.fn(),
       method: 'PUT',
       originalUrl:
-        '/v1/calendar/caldav/group/%D0%A6%D0%98%D0%A1-16/lesson-1.ics',
+        '/v1/calendar/caldav/group/%D0%A6%D0%98%D0%A1-16/calendar/lesson-1.ics',
     };
 
-    await controller.handleGroupRequest(
+    await controller.handleGroupCalendarRequest(
       'ЦИС-16',
       'lesson-1.ics',
       request as any,
@@ -329,7 +329,7 @@ describe('CalDavController', () => {
     expect(response.status).toHaveBeenCalledWith(405);
     expect(response.set).toHaveBeenCalledWith(
       'Allow',
-      'OPTIONS, PROPFIND, REPORT, GET, HEAD',
+      'OPTIONS, PROPFIND, GET, HEAD',
     );
   });
 
@@ -340,10 +340,10 @@ describe('CalDavController', () => {
     const request = {
       header: jest.fn(),
       method: 'GET',
-      originalUrl: '/v1/calendar/caldav/teacher/42/lesson-1.ics',
+      originalUrl: '/v1/calendar/caldav/teacher/42/calendar/lesson-1.ics',
     };
 
-    await controller.handleTeacherRequest(
+    await controller.handleTeacherCalendarRequest(
       42,
       'lesson-1.ics',
       request as any,

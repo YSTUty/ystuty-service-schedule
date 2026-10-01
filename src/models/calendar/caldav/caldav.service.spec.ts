@@ -30,7 +30,7 @@ describe('CalDavService', () => {
   it('advertises each VEVENT as a separate calendar object resource', () => {
     const service = new CalDavService();
     const response = service.createCollectionPropfindResponse(
-      '/v1/calendar/caldav/group-id/4627/',
+      '/v1/calendar/caldav/group-id/4627/calendar/',
       collection,
       '1',
       'urn:ystuty:caldav:sync:collection:state',
@@ -57,7 +57,7 @@ describe('CalDavService', () => {
       </d:propfind>
     `);
     const response = service.createCalendarResourcePropfindResponse(
-      '/v1/calendar/caldav/group-id/4627/first.ics',
+      '/v1/calendar/caldav/group-id/4627/calendar/first.ics',
       collection.resources[0],
       request!,
     );
@@ -86,7 +86,7 @@ describe('CalDavService', () => {
       </d:propfind>
     `)!;
     const response = service.createCollectionPropfindResponse(
-      '/v1/calendar/caldav/group-id/4627/',
+      '/v1/calendar/caldav/group-id/4627/calendar/',
       collection,
       '0',
       'urn:ystuty:caldav:sync:collection:state',
@@ -111,11 +111,11 @@ describe('CalDavService', () => {
     const service = new CalDavService();
     const principalResponse = service.createPrincipalPropfindResponse(
       '/caldav/principals/group-id/4627/',
-      '/caldav/homes/group-id/4627/',
+      '/caldav/group-id/4627/',
     );
     const homeResponse = service.createCalendarHomePropfindResponse(
-      '/caldav/homes/group-id/4627/',
       '/caldav/group-id/4627/',
+      '/caldav/group-id/4627/calendar/',
       collection,
       '1',
       'urn:ystuty:caldav:sync:collection:state',
@@ -124,7 +124,7 @@ describe('CalDavService', () => {
 
     expect(principalResponse).toContain('<d:principal/>');
     expect(principalResponse).toContain('<c:calendar-home-set>');
-    expect(principalResponse).toContain('/caldav/homes/group-id/4627/');
+    expect(principalResponse).toContain('/caldav/group-id/4627/');
     expect(homeResponse).toContain(
       '<d:resourcetype><d:collection/></d:resourcetype>',
     );
@@ -153,7 +153,7 @@ describe('CalDavService', () => {
     ]);
 
     const response = service.createReportResponse(
-      '/v1/calendar/caldav/group-id/4627/',
+      '/v1/calendar/caldav/group-id/4627/calendar/',
       reportResult,
       report!.includeCalendarData,
     );
@@ -167,7 +167,7 @@ describe('CalDavService', () => {
     const report = service.parseReportRequest(`
       <c:calendar-multiget xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
         <d:prop><d:getetag/><c:calendar-data/></d:prop>
-        <d:href>/v1/calendar/caldav/group-id/4627/second.ics</d:href>
+        <d:href>/v1/calendar/caldav/group-id/4627/calendar/second.ics</d:href>
       </c:calendar-multiget>
     `);
 
@@ -189,7 +189,7 @@ describe('CalDavService', () => {
     const report = service.parseReportRequest(`
       <c:calendar-multiget xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
         <d:prop><d:getetag/></d:prop>
-        <d:href>/v1/calendar/caldav/group-id/4627/missing.ics</d:href>
+        <d:href>/v1/calendar/caldav/group-id/4627/calendar/missing.ics</d:href>
       </c:calendar-multiget>
     `)!;
     const reportResult = service.getReportResources(
@@ -201,7 +201,7 @@ describe('CalDavService', () => {
     expect(reportResult.missingHrefs).toHaveLength(1);
     expect(
       service.createReportResponse(
-        '/v1/calendar/caldav/group-id/4627/',
+        '/v1/calendar/caldav/group-id/4627/calendar/',
         reportResult,
         false,
       ),
@@ -225,7 +225,7 @@ describe('CalDavService', () => {
     });
     expect(
       service.createSyncCollectionResponse(
-        '/v1/calendar/caldav/group-id/4627/',
+        '/v1/calendar/caldav/group-id/4627/calendar/',
         {
           isValid: true,
           token: 'urn:ystuty:caldav:sync:collection:state',

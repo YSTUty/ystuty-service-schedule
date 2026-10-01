@@ -71,16 +71,64 @@ export class CalDavController {
     private readonly metricsService: MetricsService,
   ) {}
 
-  @All(['group/:groupName', 'group/:groupName/:resource'])
+  @All('group/:groupName')
   @Version('1')
-  async handleGroupRequest(
+  async handleGroupCalendarHomeRequest(
+    @Param('groupName') groupName: string,
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() body?: string,
+  ): Promise<void> {
+    await this.handleCalendarHomeRequest(
+      this.createGroupTarget(groupName),
+      req,
+      res,
+      body,
+    );
+  }
+
+  @All('group-id/:groupId')
+  @Version('1')
+  async handleGroupIdCalendarHomeRequest(
+    @Param('groupId', ParseIntPipe) groupId: number,
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() body?: string,
+  ): Promise<void> {
+    await this.handleCalendarHomeRequest(
+      this.createGroupIdTarget(groupId),
+      req,
+      res,
+      body,
+    );
+  }
+
+  @All('teacher/:teacherId')
+  @Version('1')
+  async handleTeacherCalendarHomeRequest(
+    @Param('teacherId', ParseIntPipe) teacherId: number,
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() body?: string,
+  ): Promise<void> {
+    await this.handleCalendarHomeRequest(
+      this.createTeacherTarget(teacherId),
+      req,
+      res,
+      body,
+    );
+  }
+
+  @All(['group/:groupName/calendar', 'group/:groupName/calendar/:resource'])
+  @Version('1')
+  async handleGroupCalendarRequest(
     @Param('groupName') groupName: string,
     @Param('resource') resource: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
     @Body() body?: string,
   ): Promise<void> {
-    await this.handleRequest(
+    await this.handleCalendarRequest(
       this.createGroupTarget(groupName),
       resource,
       req,
@@ -89,16 +137,16 @@ export class CalDavController {
     );
   }
 
-  @All(['group-id/:groupId', 'group-id/:groupId/:resource'])
+  @All(['group-id/:groupId/calendar', 'group-id/:groupId/calendar/:resource'])
   @Version('1')
-  async handleGroupIdRequest(
+  async handleGroupIdCalendarRequest(
     @Param('groupId', ParseIntPipe) groupId: number,
     @Param('resource') resource: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
     @Body() body?: string,
   ): Promise<void> {
-    await this.handleRequest(
+    await this.handleCalendarRequest(
       this.createGroupIdTarget(groupId),
       resource,
       req,
@@ -107,16 +155,16 @@ export class CalDavController {
     );
   }
 
-  @All(['teacher/:teacherId', 'teacher/:teacherId/:resource'])
+  @All(['teacher/:teacherId/calendar', 'teacher/:teacherId/calendar/:resource'])
   @Version('1')
-  async handleTeacherRequest(
+  async handleTeacherCalendarRequest(
     @Param('teacherId', ParseIntPipe) teacherId: number,
     @Param('resource') resource: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
     @Body() body?: string,
   ): Promise<void> {
-    await this.handleRequest(
+    await this.handleCalendarRequest(
       this.createTeacherTarget(teacherId),
       resource,
       req,
@@ -173,58 +221,10 @@ export class CalDavController {
     );
   }
 
-  @All('homes/group/:groupName')
-  @Version('1')
-  async handleGroupCalendarHomeRequest(
-    @Param('groupName') groupName: string,
-    @Req() req: Request,
-    @Res() res: Response,
-    @Body() body?: string,
-  ): Promise<void> {
-    await this.handleCalendarHomeRequest(
-      this.createGroupTarget(groupName),
-      req,
-      res,
-      body,
-    );
-  }
-
-  @All('homes/group-id/:groupId')
-  @Version('1')
-  async handleGroupIdCalendarHomeRequest(
-    @Param('groupId', ParseIntPipe) groupId: number,
-    @Req() req: Request,
-    @Res() res: Response,
-    @Body() body?: string,
-  ): Promise<void> {
-    await this.handleCalendarHomeRequest(
-      this.createGroupIdTarget(groupId),
-      req,
-      res,
-      body,
-    );
-  }
-
-  @All('homes/teacher/:teacherId')
-  @Version('1')
-  async handleTeacherCalendarHomeRequest(
-    @Param('teacherId', ParseIntPipe) teacherId: number,
-    @Req() req: Request,
-    @Res() res: Response,
-    @Body() body?: string,
-  ): Promise<void> {
-    await this.handleCalendarHomeRequest(
-      this.createTeacherTarget(teacherId),
-      req,
-      res,
-      body,
-    );
-  }
-
   /**
    * Обрабатывает общие для всех календарей методы CalDAV.
    */
-  private async handleRequest(
+  private async handleCalendarRequest(
     target: CalDavTarget,
     resource: string | undefined,
     req: Request,
@@ -242,15 +242,20 @@ export class CalDavController {
       if (method === 'OPTIONS') {
         res
           .status(HttpStatus.NO_CONTENT)
-          .set(this.calDavService.getOptionsHeaders())
+          .set(
+            this.calDavService.getOptionsHeaders(
+              resource ? 'resource' : 'calendar',
+            ),
+          )
           .end();
         stopTimer('success');
         this.logRequest(
           req,
           target,
-          'collection',
+          resource ? 'resource' : 'collection',
           method,
           HttpStatus.NO_CONTENT,
+          resource,
         );
         return;
       }
@@ -442,7 +447,12 @@ export class CalDavController {
 
       res
         .status(HttpStatus.METHOD_NOT_ALLOWED)
-        .set('Allow', this.calDavService.getOptionsHeaders().Allow)
+        .set(
+          'Allow',
+          this.calDavService.getOptionsHeaders(
+            resource ? 'resource' : 'calendar',
+          ).Allow,
+        )
         .end();
       stopTimer('method_not_allowed');
       this.logRequest(
@@ -477,11 +487,17 @@ export class CalDavController {
     body?: string,
   ): Promise<void> {
     const method = req.method.toUpperCase();
+    const stopTimer = this.metricsService.startCalendarRequestTimer({
+      protocol: 'caldav',
+      targetType: target.type,
+      target: target.value,
+      method,
+    });
     try {
       if (method === 'OPTIONS') {
         res
           .status(HttpStatus.NO_CONTENT)
-          .set(this.calDavService.getOptionsHeaders())
+          .set(this.calDavService.getOptionsHeaders('principal'))
           .end();
         this.logRequest(
           req,
@@ -490,12 +506,13 @@ export class CalDavController {
           method,
           HttpStatus.NO_CONTENT,
         );
+        stopTimer('success');
         return;
       }
       if (method !== 'PROPFIND') {
         res
           .status(HttpStatus.METHOD_NOT_ALLOWED)
-          .set('Allow', 'OPTIONS, PROPFIND')
+          .set('Allow', this.calDavService.getOptionsHeaders('principal').Allow)
           .end();
         this.logRequest(
           req,
@@ -504,11 +521,13 @@ export class CalDavController {
           method,
           HttpStatus.METHOD_NOT_ALLOWED,
         );
+        stopTimer('method_not_allowed');
         return;
       }
 
       const collection = await target.getCollection();
       if (!collection) {
+        stopTimer('not_found');
         throw new NotFoundException(target.notFoundMessage);
       }
       const propfind = this.calDavService.parsePropfindRequest(body);
@@ -539,7 +558,14 @@ export class CalDavController {
             this.calDavService.getPropfindPropertiesForLog(propfind),
         },
       );
+      stopTimer('success');
     } catch (error) {
+      stopTimer(
+        error instanceof HttpException &&
+          error.getStatus() === HttpStatus.NOT_FOUND
+          ? 'not_found'
+          : 'error',
+      );
       this.logRequest(
         req,
         target,
@@ -561,11 +587,17 @@ export class CalDavController {
     body?: string,
   ): Promise<void> {
     const method = req.method.toUpperCase();
+    const stopTimer = this.metricsService.startCalendarRequestTimer({
+      protocol: 'caldav',
+      targetType: target.type,
+      target: target.value,
+      method,
+    });
     try {
       if (method === 'OPTIONS') {
         res
           .status(HttpStatus.NO_CONTENT)
-          .set(this.calDavService.getOptionsHeaders())
+          .set(this.calDavService.getOptionsHeaders('calendar-home'))
           .end();
         this.logRequest(
           req,
@@ -574,12 +606,16 @@ export class CalDavController {
           method,
           HttpStatus.NO_CONTENT,
         );
+        stopTimer('success');
         return;
       }
       if (method !== 'PROPFIND') {
         res
           .status(HttpStatus.METHOD_NOT_ALLOWED)
-          .set('Allow', 'OPTIONS, PROPFIND')
+          .set(
+            'Allow',
+            this.calDavService.getOptionsHeaders('calendar-home').Allow,
+          )
           .end();
         this.logRequest(
           req,
@@ -588,11 +624,13 @@ export class CalDavController {
           method,
           HttpStatus.METHOD_NOT_ALLOWED,
         );
+        stopTimer('method_not_allowed');
         return;
       }
 
       const collection = await target.getCollection();
       if (!collection) {
+        stopTimer('not_found');
         throw new NotFoundException(target.notFoundMessage);
       }
       const syncToken = (
@@ -634,7 +672,14 @@ export class CalDavController {
             this.calDavService.getPropfindPropertiesForLog(propfind),
         },
       );
+      stopTimer('success');
     } catch (error) {
+      stopTimer(
+        error instanceof HttpException &&
+          error.getStatus() === HttpStatus.NOT_FOUND
+          ? 'not_found'
+          : 'error',
+      );
       this.logRequest(
         req,
         target,
@@ -667,7 +712,7 @@ export class CalDavController {
 
   /** Абсолютные href строятся из единственного публичного `CUSTOM_CALENDAR_URL`. */
   private getCollectionHref(target: { publicCollectionPath: string }): string {
-    return `${this.getCalDavBaseUrl()}/${target.publicCollectionPath}/`;
+    return `${this.getCalendarHomeHref(target)}calendar/`;
   }
 
   private getPrincipalHref(target: { publicCollectionPath: string }): string {
@@ -677,7 +722,7 @@ export class CalDavController {
   private getCalendarHomeHref(target: {
     publicCollectionPath: string;
   }): string {
-    return `${this.getCalDavBaseUrl()}/homes/${target.publicCollectionPath}/`;
+    return `${this.getCalDavBaseUrl()}/${target.publicCollectionPath}/`;
   }
 
   private getCalDavBaseUrl(): string {

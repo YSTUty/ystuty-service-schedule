@@ -105,4 +105,18 @@ describe('Calendar teacherId validation', () => {
         'Basic realm="YSTUty Calendar", charset="UTF-8"',
       );
   });
+
+  it('keeps the calendar home and calendar collection on different routes', async () => {
+    await request(app.getHttpServer())
+      .options('/v1/calendar/caldav/group-id/4627')
+      .auth('calendar-client', '')
+      .expect(204)
+      .expect('allow', 'OPTIONS, PROPFIND');
+
+    await request(app.getHttpServer())
+      .options('/v1/calendar/caldav/group-id/4627/calendar')
+      .auth('calendar-client', '')
+      .expect(204)
+      .expect('allow', 'OPTIONS, PROPFIND, REPORT');
+  });
 });

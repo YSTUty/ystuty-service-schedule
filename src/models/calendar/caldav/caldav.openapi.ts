@@ -28,26 +28,30 @@ const getSecurity = [{ caldavBasic: [] }];
 const createOptionsOperation = (
   parameters: Record<string, unknown>[],
   operationId: string,
+  summary: string,
+  description: string,
+  allow: string,
+  dav: string,
 ) => ({
   operationId,
   tags: ['caldav'],
-  summary: 'Получить поддерживаемые CalDAV-методы',
+  summary,
   security: getSecurity,
   parameters,
   responses: {
     [HttpStatus.NO_CONTENT]: {
-      description: 'CalDAV-коллекция доступна',
+      description,
       headers: {
         Allow: {
           schema: {
             type: 'string',
-            example: 'OPTIONS, PROPFIND, REPORT, GET, HEAD',
+            example: allow,
           },
         },
         DAV: {
           schema: {
             type: 'string',
-            example: '1, calendar-access, sync-collection',
+            example: dav,
           },
         },
       },
@@ -63,7 +67,8 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
   const targetPaths = [
     {
       path: '/v1/calendar/caldav/group/{groupName}',
-      resourcePath: '/v1/calendar/caldav/group/{groupName}/{resource}',
+      calendarPath: '/v1/calendar/caldav/group/{groupName}/calendar',
+      resourcePath: '/v1/calendar/caldav/group/{groupName}/calendar/{resource}',
       target: 'группы',
       targetName: 'Group',
       isNumeric: false,
@@ -76,7 +81,9 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
     },
     {
       path: '/v1/calendar/caldav/teacher/{teacherId}',
-      resourcePath: '/v1/calendar/caldav/teacher/{teacherId}/{resource}',
+      calendarPath: '/v1/calendar/caldav/teacher/{teacherId}/calendar',
+      resourcePath:
+        '/v1/calendar/caldav/teacher/{teacherId}/calendar/{resource}',
       target: 'преподавателя',
       targetName: 'Teacher',
       isNumeric: true,
@@ -89,7 +96,9 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
     },
     {
       path: '/v1/calendar/caldav/group-id/{groupId}',
-      resourcePath: '/v1/calendar/caldav/group-id/{groupId}/{resource}',
+      calendarPath: '/v1/calendar/caldav/group-id/{groupId}/calendar',
+      resourcePath:
+        '/v1/calendar/caldav/group-id/{groupId}/calendar/{resource}',
       target: 'группы по постоянному ID',
       targetName: 'GroupId',
       isNumeric: true,
@@ -136,7 +145,7 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
     const webDavMethods = {
       PROPFIND: {
         description:
-          'Возвращает свойства CalDAV-коллекции и её event resources.',
+          'Возвращает свойства calendar collection и её event resources.',
         successStatus: HttpStatus.MULTI_STATUS,
         responseContentType: 'application/xml; charset=utf-8',
       },
@@ -179,11 +188,34 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
     document.paths[targetPath.path] = {
       options: createOptionsOperation(
         parameters,
-        `calendar_caldavOptions${targetPath.targetName}`,
+        `calendar_caldavOptions${targetPath.targetName}Home`,
+        'Получить поддерживаемые WebDAV-методы calendar home',
+        'Calendar home доступен',
+        'OPTIONS, PROPFIND',
+        '1, calendar-access',
+      ),
+      'x-webdav-methods': {
+        PROPFIND: {
+          description:
+            'Возвращает calendar home и единственную дочернюю calendar collection.',
+          successStatus: HttpStatus.MULTI_STATUS,
+          responseContentType: 'application/xml; charset=utf-8',
+        },
+      },
+      'x-caldav-discovery':
+        'Это calendar home. PROPFIND Depth: 1 возвращает одну read-only calendar collection по пути /calendar/. DAV:current-user-principal ведёт на virtual principal, а его CALDAV:calendar-home-set — обратно на этот calendar home.',
+    } as any;
+
+    document.paths[targetPath.calendarPath] = {
+      options: createOptionsOperation(
+        parameters,
+        `calendar_caldavOptions${targetPath.targetName}Collection`,
+        'Получить поддерживаемые CalDAV-методы calendar collection',
+        'Read-only CalDAV-коллекция доступна',
+        'OPTIONS, PROPFIND, REPORT',
+        '1, calendar-access, sync-collection',
       ),
       'x-webdav-methods': webDavMethods,
-      'x-caldav-discovery':
-        'PROPFIND коллекции возвращает DAV:current-user-principal, затем CALDAV:calendar-home-set с этой read-only коллекцией.',
     } as any;
 
     document.paths[targetPath.resourcePath] = {
@@ -203,6 +235,10 @@ export function addCalDavOpenApi(document: OpenAPIObject): void {
       options: createOptionsOperation(
         resourceParameters,
         `calendar_caldavOptions${targetPath.targetName}Resource`,
+        `Получить поддерживаемые WebDAV-методы event resource календаря ${targetPath.target}`,
+        'Event resource доступен',
+        'OPTIONS, PROPFIND, GET, HEAD',
+        '1, calendar-access',
       ),
       'x-webdav-methods': webDavMethods,
     } as any;

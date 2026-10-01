@@ -17,6 +17,7 @@ const calDavPassword = process.env.CALDAV_TEST_PASSWORD ?? '';
 describeCalDavContract('CalDAV protocol contract (e2e)', () => {
   let authorization: string;
   let calendarHomeUrl: string;
+  let calendarCollectionUrl: string;
   let calendarResourceUrl: string;
   let principalUrl: string;
   let syncToken: string;
@@ -37,6 +38,7 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
       `${calDavUsername}:${calDavPassword}`,
     ).toString('base64')}`;
     calendarHomeUrl = '';
+    calendarCollectionUrl = '';
     calendarResourceUrl = '';
     principalUrl = '';
     syncToken = '';
@@ -63,10 +65,9 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
     expect(response.status).toBe(204);
     expect(response.headers.get('dav')).toContain('calendar-access');
     expect(response.headers.get('allow')).toContain('PROPFIND');
-    expect(response.headers.get('allow')).toContain('REPORT');
   });
 
-  it('discovers a principal and calendar home from the configured collection', async () => {
+  it('discovers a principal from the configured calendar home', async () => {
     const collectionResponse = await requestCalDav('PROPFIND', calDavUrl, {
       Depth: '0',
       'Content-Type': 'application/xml; charset=utf-8',
@@ -105,7 +106,7 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
     expect(homeBody).toContain('<d:current-user-principal>');
   });
 
-  it('discovers the collection and its event resources through PROPFIND', async () => {
+  it('discovers one calendar collection through PROPFIND on the calendar home', async () => {
     const response = await requestCalDav('PROPFIND', calDavUrl, {
       Depth: '1',
       'Content-Type': 'application/xml; charset=utf-8',
@@ -115,22 +116,24 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
     expect(response.status).toBe(207);
     expect(response.headers.get('content-type')).toContain('application/xml');
     expect(body).toContain('<d:multistatus');
-    expect(body).toContain('<c:calendar-query/>');
-    expect(body).toContain('<c:calendar-multiget/>');
-    expect(body).toContain('<d:sync-collection/>');
-    expect(body).toContain('<d:getetag>');
+    expect(body).toContain('<c:calendar/>');
+    expect(body).not.toContain('<d:getetag>');
 
-    const resourceHref = body.match(/<d:href>([^<]+\.ics)<\/d:href>/)?.[1];
-    expect(resourceHref).toBeTruthy();
-    calendarResourceUrl = new URL(resourceHref!, calDavUrl).toString();
-    // Prefix может отличаться из-за public reverse proxy, но client должен
-    // получить ссылку на тот же публичный CalDAV origin.
-    expect(new URL(calendarResourceUrl).origin).toBe(
+    const calendarCollectionHref = Array.from(
+      body.matchAll(/<d:href>([^<]+)<\/d:href>/g),
+      (match) => match[1],
+    ).find((href) => href.endsWith('/calendar/'));
+    expect(calendarCollectionHref).toBeTruthy();
+    calendarCollectionUrl = new URL(
+      calendarCollectionHref!,
+      calDavUrl,
+    ).toString();
+    expect(new URL(calendarCollectionUrl).origin).toBe(
       new URL(calDavUrl!).origin,
     );
     if (expectedPublicCollectionUrl) {
       expect(
-        calendarResourceUrl.startsWith(`${expectedPublicCollectionUrl}/`),
+        calendarCollectionUrl.startsWith(`${expectedPublicCollectionUrl}/`),
       ).toBe(true);
     }
   });
@@ -138,7 +141,7 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
   it('performs an initial RFC 6578 synchronization', async () => {
     const response = await requestCalDav(
       'REPORT',
-      calDavUrl,
+      calendarCollectionUrl,
       {
         Depth: '0',
         'Content-Type': 'application/xml; charset=utf-8',
@@ -156,12 +159,18 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
     expect(body).toContain('<c:calendar-data>');
     syncToken = body.match(/<d:sync-token>([^<]+)<\/d:sync-token>/)?.[1] ?? '';
     expect(syncToken).toContain('urn:ystuty:caldav:sync:');
+    const resourceHref = body.match(/<d:href>([^<]+\.ics)<\/d:href>/)?.[1];
+    expect(resourceHref).toBeTruthy();
+    calendarResourceUrl = new URL(
+      resourceHref!,
+      calendarCollectionUrl,
+    ).toString();
   });
 
   it('performs RFC 6578 incremental synchronization for an unchanged calendar', async () => {
     const response = await requestCalDav(
       'REPORT',
-      calDavUrl,
+      calendarCollectionUrl,
       {
         Depth: '0',
         'Content-Type': 'application/xml; charset=utf-8',
@@ -197,7 +206,7 @@ describeCalDavContract('CalDAV protocol contract (e2e)', () => {
   it('returns matching iCalendar resources for a calendar-query REPORT', async () => {
     const response = await requestCalDav(
       'REPORT',
-      calDavUrl,
+      calendarCollectionUrl,
       {
         Depth: '1',
         'Content-Type': 'application/xml; charset=utf-8',
