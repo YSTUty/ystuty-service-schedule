@@ -69,6 +69,44 @@ describe('CalDavService', () => {
     expect(response).toContain('HTTP/1.1 404 Not Found');
   });
 
+  it('preserves the namespace of unsupported PROPFIND properties', () => {
+    const service = new CalDavService();
+    const request = service.parsePropfindRequest(`
+      <d:propfind
+        xmlns:d="DAV:"
+        xmlns:c="urn:ietf:params:xml:ns:caldav"
+        xmlns:cs="http://calendarserver.org/ns/"
+        xmlns:apple="http://apple.com/ns/ical/">
+        <d:prop>
+          <c:calendar-home-set/>
+          <cs:getctag/>
+          <apple:calendar-color/>
+          <d:owner/>
+        </d:prop>
+      </d:propfind>
+    `)!;
+    const response = service.createCollectionPropfindResponse(
+      '/v1/calendar/caldav/group-id/4627/',
+      collection,
+      '0',
+      'urn:ystuty:caldav:sync:collection:state',
+      undefined,
+      request,
+    );
+
+    expect(service.getPropfindPropertiesForLog(request)).toBe(
+      'c:calendar-home-set,cs:getctag,apple:calendar-color,d:owner',
+    );
+    expect(response).toContain('<cs:getctag>');
+    expect(response).toContain('<c:calendar-home-set/>');
+    expect(response).toContain(
+      '<x:calendar-color xmlns:x="http://apple.com/ns/ical/"/>',
+    );
+    expect(response).toContain('<d:owner/>');
+    expect(response).not.toContain('<d:calendar-home-set/>');
+    expect(response).not.toContain('<d:calendar-color/>');
+  });
+
   it('provides a principal and calendar home for account-style discovery', () => {
     const service = new CalDavService();
     const principalResponse = service.createPrincipalPropfindResponse(

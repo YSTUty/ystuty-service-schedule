@@ -14,6 +14,10 @@ export const CALDAV_OPTIONS_HEADERS = {
   'MS-Author-Via': 'DAV',
 };
 
+const DAV_NAMESPACE = 'DAV:';
+const CALDAV_NAMESPACE = 'urn:ietf:params:xml:ns:caldav';
+const CALENDARSERVER_NAMESPACE = 'http://calendarserver.org/ns/';
+
 interface CalDavCalendarQuery {
   type: 'calendar-query';
   includeCalendarData: boolean;
@@ -42,11 +46,17 @@ interface CalDavReportResult {
 
 interface CalDavPropfindRequest {
   mode: 'allprop' | 'prop' | 'propname';
-  properties: string[];
+  properties: CalDavXmlName[];
+}
+
+interface CalDavXmlName {
+  localName: string;
+  namespace: string;
+  qualifiedName: string;
 }
 
 interface CalDavXmlProperty {
-  name: string;
+  name: CalDavXmlName;
   value: string;
 }
 
@@ -56,6 +66,11 @@ export class CalDavService {
     attributeNamePrefix: '@_',
     ignoreAttributes: false,
     removeNSPrefix: true,
+  });
+
+  private readonly propfindXmlParser = new XMLParser({
+    attributeNamePrefix: '@_',
+    ignoreAttributes: false,
   });
 
   getOptionsHeaders(): Record<string, string> {
@@ -73,31 +88,47 @@ export class CalDavService {
 
     let document: Record<string, unknown>;
     try {
-      document = this.xmlParser.parse(body) as Record<string, unknown>;
+      document = this.propfindXmlParser.parse(body) as Record<string, unknown>;
     } catch {
       return null;
     }
 
-    const propfind = document.propfind;
-    if (!this.isRecord(propfind)) {
+    const propfindEntry = this.findChildByLocalName(document, 'propfind');
+    if (!propfindEntry || !this.isRecord(propfindEntry.value)) {
       return null;
     }
-    if ('propname' in propfind) {
+    const propfind = propfindEntry.value;
+    if (this.findChildByLocalName(propfind, 'propname')) {
       return { mode: 'propname', properties: [] };
     }
-    if ('allprop' in propfind) {
+    if (this.findChildByLocalName(propfind, 'allprop')) {
       return { mode: 'allprop', properties: [] };
     }
-    if (!('prop' in propfind)) {
+    const propEntry = this.findChildByLocalName(propfind, 'prop');
+    if (!propEntry || !this.isRecord(propEntry.value)) {
       return null;
     }
 
-    const prop = propfind.prop;
-    const properties = this.isRecord(prop)
-      ? Object.keys(prop).filter((property) => !property.startsWith('@_'))
-      : [];
+    const namespaces = this.getNamespaces(document, propfind, propEntry.value);
+    const properties = Object.keys(propEntry.value)
+      .filter((property) => !property.startsWith('@_'))
+      .map((property) => this.createXmlName(property, namespaces));
 
     return { mode: 'prop', properties };
+  }
+
+  /** Возвращает краткий безопасный список запрошенных PROPFIND-свойств. */
+  getPropfindPropertiesForLog(request: CalDavPropfindRequest): string {
+    if (request.mode !== 'prop') {
+      return request.mode;
+    }
+
+    const properties = request.properties
+      .slice(0, 12)
+      .map((property) => property.qualifiedName)
+      .join(',');
+
+    return request.properties.length > 12 ? `${properties},…` : properties;
   }
 
   /**
@@ -263,15 +294,15 @@ export class CalDavService {
         principalHref,
         [
           {
-            name: 'resourcetype',
+            name: this.davName('resourcetype'),
             value: '<d:resourcetype><d:principal/></d:resourcetype>',
           },
           {
-            name: 'displayname',
+            name: this.davName('displayname'),
             value: '<d:displayname>YSTUty Calendar</d:displayname>',
           },
           {
-            name: 'calendar-home-set',
+            name: this.caldavName('calendar-home-set'),
             value: `<c:calendar-home-set><d:href>${this.escapeXml(calendarHomeHref)}</d:href></c:calendar-home-set>`,
           },
         ],
@@ -295,15 +326,15 @@ export class CalDavService {
         calendarHomeHref,
         [
           {
-            name: 'resourcetype',
+            name: this.davName('resourcetype'),
             value: '<d:resourcetype><d:collection/></d:resourcetype>',
           },
           {
-            name: 'displayname',
+            name: this.davName('displayname'),
             value: '<d:displayname>YSTUty Calendars</d:displayname>',
           },
           {
-            name: 'current-user-principal',
+            name: this.davName('current-user-principal'),
             value: `<d:current-user-principal><d:href>${this.escapeXml(principalHref)}</d:href></d:current-user-principal>`,
           },
         ],
@@ -407,37 +438,37 @@ export class CalDavService {
   ): string {
     const properties: CalDavXmlProperty[] = [
       {
-        name: 'resourcetype',
+        name: this.davName('resourcetype'),
         value: '<d:resourcetype><d:collection/><c:calendar/></d:resourcetype>',
       },
       {
-        name: 'displayname',
+        name: this.davName('displayname'),
         value: `<d:displayname>${this.escapeXml(`YSTUty [${calendarName}]`)}</d:displayname>`,
       },
       {
-        name: 'calendar-description',
+        name: this.caldavName('calendar-description'),
         value: `<c:calendar-description xml:lang="ru">${this.escapeXml(calendarDescription)}</c:calendar-description>`,
       },
       {
-        name: 'supported-calendar-component-set',
+        name: this.caldavName('supported-calendar-component-set'),
         value:
           '<c:supported-calendar-component-set><c:comp name="VEVENT"/></c:supported-calendar-component-set>',
       },
       {
-        name: 'supported-calendar-data',
+        name: this.caldavName('supported-calendar-data'),
         value:
           '<c:supported-calendar-data><c:calendar-data content-type="text/calendar" version="2.0"/></c:supported-calendar-data>',
       },
       {
-        name: 'sync-token',
+        name: this.davName('sync-token'),
         value: `<d:sync-token>${this.escapeXml(syncToken)}</d:sync-token>`,
       },
       {
-        name: 'getctag',
+        name: this.calendarServerName('getctag'),
         value: `<cs:getctag>${this.escapeXml(syncToken)}</cs:getctag>`,
       },
       {
-        name: 'supported-report-set',
+        name: this.davName('supported-report-set'),
         value: `<d:supported-report-set>
           <d:supported-report><d:report><c:calendar-query/></d:report></d:supported-report>
           <d:supported-report><d:report><c:calendar-multiget/></d:report></d:supported-report>
@@ -447,7 +478,7 @@ export class CalDavService {
     ];
     if (principalHref) {
       properties.push({
-        name: 'current-user-principal',
+        name: this.davName('current-user-principal'),
         value: `<d:current-user-principal><d:href>${this.escapeXml(principalHref)}</d:href></d:current-user-principal>`,
       });
     }
@@ -462,18 +493,23 @@ export class CalDavService {
     request: CalDavPropfindRequest,
   ): string {
     const propertiesByName = new Map(
-      properties.map((property) => [property.name, property]),
+      properties.map((property) => [
+        this.getXmlNameKey(property.name),
+        property,
+      ]),
     );
     const requestedProperties =
       request.mode === 'allprop' || request.mode === 'propname'
         ? properties
         : request.properties
-            .map((property) => propertiesByName.get(property))
+            .map((property) =>
+              propertiesByName.get(this.getXmlNameKey(property)),
+            )
             .filter((property): property is CalDavXmlProperty => !!property);
     const unsupportedProperties =
       request.mode === 'prop'
         ? request.properties.filter(
-            (property) => !propertiesByName.has(property),
+            (property) => !propertiesByName.has(this.getXmlNameKey(property)),
           )
         : [];
     const propertyValues = requestedProperties.map((property) =>
@@ -491,10 +527,19 @@ export class CalDavService {
     return `<d:response><d:href>${this.escapeXml(href)}</d:href>${successPropstat}${notFoundPropstat}</d:response>`;
   }
 
-  private createEmptyProperty(name: string): string {
-    const safeName = name.match(/^[a-zA-Z][a-zA-Z0-9-]*$/) ? name : 'unknown';
+  private createEmptyProperty(name: CalDavXmlName): string {
+    const safeLocalName = name.localName.match(/^[a-zA-Z][a-zA-Z0-9-]*$/)
+      ? name.localName
+      : 'unknown';
+    const prefix = this.getNamespacePrefix(name.namespace);
+    if (prefix) {
+      return `<${prefix}:${safeLocalName}/>`;
+    }
+    if (!name.namespace) {
+      return `<${safeLocalName}/>`;
+    }
 
-    return `<d:${safeName}/>`;
+    return `<x:${safeLocalName} xmlns:x="${this.escapeXml(name.namespace)}"/>`;
   }
 
   private createCalendarObjectPropfindResponse(
@@ -505,26 +550,32 @@ export class CalDavService {
     return this.createPropfindResponse(
       href,
       [
-        { name: 'resourcetype', value: '<d:resourcetype/>' },
         {
-          name: 'displayname',
+          name: this.davName('resourcetype'),
+          value: '<d:resourcetype/>',
+        },
+        {
+          name: this.davName('displayname'),
           value: `<d:displayname>${this.escapeXml(resource.name)}</d:displayname>`,
         },
         {
-          name: 'getcontenttype',
+          name: this.davName('getcontenttype'),
           value:
             '<d:getcontenttype>text/calendar; charset=utf-8</d:getcontenttype>',
         },
         {
-          name: 'getcontentlength',
+          name: this.davName('getcontentlength'),
           value: `<d:getcontentlength>${Buffer.byteLength(
             resource.content,
             'utf8',
           )}</d:getcontentlength>`,
         },
-        { name: 'getetag', value: `<d:getetag>${resource.etag}</d:getetag>` },
         {
-          name: 'getlastmodified',
+          name: this.davName('getetag'),
+          value: `<d:getetag>${resource.etag}</d:getetag>`,
+        },
+        {
+          name: this.davName('getlastmodified'),
           value: `<d:getlastmodified>${this.getResourceLastModified(
             resource,
           ).toUTCString()}</d:getlastmodified>`,
@@ -677,6 +728,99 @@ export class CalDavService {
         ? child.flatMap((item) => this.getElementTextValues(item, name))
         : this.getElementTextValues(child, name);
     });
+  }
+
+  /** Находит дочерний XML-элемент независимо от использованного prefix. */
+  private findChildByLocalName(
+    value: Record<string, unknown>,
+    localName: string,
+  ): { qualifiedName: string; value: unknown } | null {
+    const entry = Object.entries(value).find(
+      ([name]) => this.getLocalName(name) === localName,
+    );
+
+    return entry ? { qualifiedName: entry[0], value: entry[1] } : null;
+  }
+
+  private getNamespaces(
+    ...values: Record<string, unknown>[]
+  ): Map<string, string> {
+    const namespaces = new Map<string, string>();
+    for (const value of values) {
+      for (const [name, namespace] of Object.entries(value)) {
+        if (typeof namespace !== 'string') {
+          continue;
+        }
+        if (name === '@_xmlns') {
+          namespaces.set('', namespace);
+        } else if (name.startsWith('@_xmlns:')) {
+          namespaces.set(name.slice('@_xmlns:'.length), namespace);
+        }
+      }
+    }
+
+    return namespaces;
+  }
+
+  private createXmlName(
+    qualifiedName: string,
+    namespaces: Map<string, string>,
+  ): CalDavXmlName {
+    const [prefix, localName] = qualifiedName.includes(':')
+      ? qualifiedName.split(':', 2)
+      : ['', qualifiedName];
+
+    return {
+      localName,
+      namespace: namespaces.get(prefix) ?? '',
+      qualifiedName,
+    };
+  }
+
+  private davName(localName: string): CalDavXmlName {
+    return {
+      localName,
+      namespace: DAV_NAMESPACE,
+      qualifiedName: `d:${localName}`,
+    };
+  }
+
+  private caldavName(localName: string): CalDavXmlName {
+    return {
+      localName,
+      namespace: CALDAV_NAMESPACE,
+      qualifiedName: `c:${localName}`,
+    };
+  }
+
+  private calendarServerName(localName: string): CalDavXmlName {
+    return {
+      localName,
+      namespace: CALENDARSERVER_NAMESPACE,
+      qualifiedName: `cs:${localName}`,
+    };
+  }
+
+  private getLocalName(qualifiedName: string): string {
+    return qualifiedName.split(':').at(-1) ?? qualifiedName;
+  }
+
+  private getXmlNameKey(name: CalDavXmlName): string {
+    return `${name.namespace}\u0000${name.localName}`;
+  }
+
+  private getNamespacePrefix(namespace: string): 'd' | 'c' | 'cs' | null {
+    if (namespace === DAV_NAMESPACE) {
+      return 'd';
+    }
+    if (namespace === CALDAV_NAMESPACE) {
+      return 'c';
+    }
+    if (namespace === CALENDARSERVER_NAMESPACE) {
+      return 'cs';
+    }
+
+    return null;
   }
 
   private isRecord(value: unknown): value is Record<string, unknown> {

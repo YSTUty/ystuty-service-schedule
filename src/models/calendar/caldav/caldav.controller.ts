@@ -329,7 +329,8 @@ export class CalDavController {
             totalEventResources: calendarResource
               ? undefined
               : collection.resources.length,
-            requestedProperties: this.getPropfindProperties(propfind),
+            requestedProperties:
+              this.calDavService.getPropfindPropertiesForLog(propfind),
           },
         );
         return;
@@ -534,7 +535,8 @@ export class CalDavController {
         undefined,
         {
           depth: this.getRequestDepth(req),
-          requestedProperties: this.getPropfindProperties(propfind),
+          requestedProperties:
+            this.calDavService.getPropfindPropertiesForLog(propfind),
         },
       );
     } catch (error) {
@@ -628,7 +630,8 @@ export class CalDavController {
         {
           depth: this.getRequestDepth(req),
           calendarCollections: this.hasDepthOneOrMore(req) ? 1 : 0,
-          requestedProperties: this.getPropfindProperties(propfind),
+          requestedProperties:
+            this.calDavService.getPropfindPropertiesForLog(propfind),
         },
       );
     } catch (error) {
@@ -774,20 +777,6 @@ export class CalDavController {
   /** RFC 4791: без заголовка Depth для collection подразумевается `0`. */
   private getRequestDepth(req: Request): string {
     return req.header('Depth') ?? '0';
-  }
-
-  /** Ограничивает список имён свойств, чтобы не раздувать production-логи. */
-  private getPropfindProperties(propfind: {
-    mode: 'allprop' | 'prop' | 'propname';
-    properties: string[];
-  }): string {
-    if (propfind.mode !== 'prop') {
-      return propfind.mode;
-    }
-
-    const properties = propfind.properties.slice(0, 12).join(',');
-
-    return propfind.properties.length > 12 ? `${properties},…` : properties;
   }
 
   private hasDepthOneOrMore(req: Request): boolean {
